@@ -1,0 +1,14 @@
+/* App.css - Main application styles */
+.app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app>* {
+    flex-shrink: 0;
+}
+
+.app>main {
+    flex: 1;
+}
