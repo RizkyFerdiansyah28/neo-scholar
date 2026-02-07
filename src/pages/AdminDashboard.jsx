@@ -19,64 +19,45 @@ function AdminDashboard({ setIsLoggedIn }) {
     // Reports Modal State
     const [showReportsModal, setShowReportsModal] = useState(false)
 
-    // Data States
-    const [users, setUsers] = useState([
-        { id: 1, name: 'John Doe', email: 'john@example.com', role: 'client', status: 'active' },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'mentor', status: 'active' },
-        { id: 3, name: 'Bob Wilson', email: 'bob@example.com', role: 'client', status: 'inactive' },
-        { id: 4, name: 'Admin User', email: 'admin@example.com', role: 'admin', status: 'active' }
-    ])
+    // Data States - Inisialisasi dengan array kosong
+    const [users, setUsers] = useState([])
+    const [courses, setCourses] = useState([])
 
-    const [courses, setCourses] = useState([
-        {
-            id: 1,
-            title: 'Video Pembelajaran Animasi 2D',
-            description: 'Learn 2D animation from scratch',
-            price: 'Rp 1,250,000',
-            category: 'animation',
-            image: '/images/products/Animasi2d.jpeg',
-            students: 156,
-            rating: 4.8
-        },
-        {
-            id: 2,
-            title: 'AR Learning - Struktur Bumi',
-            description: 'Interactive AR learning experience',
-            price: 'Rp 1,500,000',
-            category: 'ar-vr',
-            image: '/images/products/ARstrukturbumi.jpeg',
-            students: 89,
-            rating: 4.9
-        },
-        {
-            id: 3,
-            title: 'Board Game Edukasi',
-            description: 'Educational board game design',
-            price: 'Rp 850,000',
-            category: 'design',
-            image: '/images/products/Bgameoperasihitungan.jpeg',
-            students: 234,
-            rating: 4.7
-        }
-    ])
-
-    // Load data from localStorage on mount
+    // Load data from API on mount
     useEffect(() => {
-        const savedUsers = localStorage.getItem('adminUsers')
-        const savedCourses = localStorage.getItem('adminCourses')
+        const fetchData = async () => {
+            try {
+                setIsLoading(true);
 
-        if (savedUsers) setUsers(JSON.parse(savedUsers))
-        if (savedCourses) setCourses(JSON.parse(savedCourses))
-    }, [])
+                // 1. Ambil data Users dari Backend
+                const usersResponse = await fetch('http://localhost:8000/users.php');
+                const usersData = await usersResponse.json();
+                setUsers(usersData);
 
-    // Save to localStorage whenever data changes
-    useEffect(() => {
-        localStorage.setItem('adminUsers', JSON.stringify(users))
-    }, [users])
+                // 2. Ambil data Courses dari Backend
+                const coursesResponse = await fetch('http://localhost:8000/courses.php');
 
-    useEffect(() => {
-        localStorage.setItem('adminCourses', JSON.stringify(courses))
-    }, [courses])
+                // 3. Di fungsi handleSave
+                // Perhatikan penambahan "?id=" untuk PUT/DELETE karena PHP menangkapnya lewat $_GET['id']
+                let url = modalType === 'user'
+                    ? 'http://localhost:8000/users.php'
+                    : 'http://localhost:8000/courses.php';
+
+                if (modalMode === 'edit' || modalMode === 'delete') {
+                    url += `?id=${data.id}`; // Ubah format URL agar sesuai dengan PHP $_GET['id']
+                }
+                const coursesData = await coursesResponse.json();
+                setCourses(coursesData);
+
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     useEffect(() => {
         // Check if user is logged in and is admin
@@ -87,11 +68,9 @@ function AdminDashboard({ setIsLoggedIn }) {
         if (!userLoggedIn || userLoggedIn !== 'true') {
             navigate('/login')
         } else if (userRole !== 'admin') {
-            // Redirect to appropriate dashboard based on role
             navigate(userRole === 'mentor' ? '/mentor/dashboard' : '/dashboard')
         } else {
             setUsername(storedUsername || 'Admin')
-            setIsLoading(false)
         }
     }, [navigate])
 
@@ -138,39 +117,54 @@ function AdminDashboard({ setIsLoggedIn }) {
         setShowModal(true)
     }
 
-    const handleSave = (data) => {
-        if (modalType === 'user') {
-            if (modalMode === 'create') {
-                // Create new user
-                const newUser = {
-                    ...data,
-                    id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1
-                }
-                setUsers([...users, newUser])
-            } else if (modalMode === 'edit') {
-                // Update existing user
-                setUsers(users.map(u => u.id === selectedData.id ? { ...data, id: selectedData.id } : u))
-            } else if (modalMode === 'delete') {
-                // Delete user
-                setUsers(users.filter(u => u.id !== data.id))
+    // Fungsi Handle Save yang Terhubung ke API
+    const handleSave = async (data) => {
+        try {
+            // Tentukan URL berdasarkan tipe data (users atau courses)
+            // Menggunakan plural (user -> users, course -> courses)
+            let endpoint = modalType === 'user' ? 'users' : 'courses';
+            let url = `http://localhost:3000/api/${endpoint}`;
+            let method = 'POST';
+
+            // Jika Edit atau Delete, tambahkan ID ke URL
+            if (modalMode === 'edit' || modalMode === 'delete') {
+                url += `/${data.id}`;
             }
-        } else if (modalType === 'course') {
-            if (modalMode === 'create') {
-                // Create new course
-                const newCourse = {
-                    ...data,
-                    id: courses.length > 0 ? Math.max(...courses.map(c => c.id)) + 1 : 1,
-                    students: 0,
-                    rating: 0
+
+            // Tentukan HTTP Method
+            if (modalMode === 'edit') method = 'PUT';
+            if (modalMode === 'delete') method = 'DELETE';
+
+            // Kirim Request ke Backend
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                // Body dikirim kecuali untuk metode DELETE
+                body: modalMode === 'delete' ? null : JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                // Jika sukses, refresh data dari server agar tampilan update
+                const refreshRes = await fetch(`http://localhost:3000/api/${endpoint}`);
+                const refreshData = await refreshRes.json();
+
+                if (modalType === 'user') {
+                    setUsers(refreshData);
+                } else {
+                    setCourses(refreshData);
                 }
-                setCourses([...courses, newCourse])
-            } else if (modalMode === 'edit') {
-                // Update existing course
-                setCourses(courses.map(c => c.id === selectedData.id ? { ...data, id: selectedData.id, students: selectedData.students, rating: selectedData.rating } : c))
-            } else if (modalMode === 'delete') {
-                // Delete course
-                setCourses(courses.filter(c => c.id !== data.id))
+
+                // Opsional: Tampilkan pesan sukses kecil
+                // alert(`Data ${modalType} berhasil ${modalMode === 'create' ? 'dibuat' : modalMode === 'edit' ? 'diubah' : 'dihapus'}!`);
+            } else {
+                console.error("Server responded with error");
+                alert('Gagal menyimpan perubahan ke database.');
             }
+        } catch (error) {
+            console.error("Error saving data:", error);
+            alert('Terjadi kesalahan koneksi server.');
         }
     }
 
@@ -369,12 +363,17 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <div className="courses-list">
                                     {courses.map((course) => (
                                         <div key={course.id} className="course-item">
-                                            <img src={course.image} alt={course.title} />
+                                            {/* Handle image display if URL is not perfect */}
+                                            <img
+                                                src={course.image_url || course.image || '/images/default-course.jpg'}
+                                                alt={course.title}
+                                                onError={(e) => { e.target.src = 'https://via.placeholder.com/150' }}
+                                            />
                                             <div className="course-info">
                                                 <h3>{course.title}</h3>
                                                 <p className="course-stats">
-                                                    <i className="fas fa-users"></i> {course.students} Students •
-                                                    <i className="fas fa-star"></i> {course.rating}
+                                                    <i className="fas fa-users"></i> {course.students || course.total_students || 0} Students •
+                                                    <i className="fas fa-star"></i> {course.rating || 0}
                                                 </p>
                                                 <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                                                     <button
@@ -410,6 +409,7 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 </div>
                             </div>
                             <div className="activity-list">
+                                {/* Activity items can be fetched from API later */}
                                 <div className="activity-item">
                                     <div className="activity-icon">
                                         <i className="fas fa-user-plus"></i>
@@ -417,42 +417,6 @@ function AdminDashboard({ setIsLoggedIn }) {
                                     <div className="activity-info">
                                         <h4>New user registered: Ahmad Rizki</h4>
                                         <p>5 minutes ago</p>
-                                    </div>
-                                </div>
-                                <div className="activity-item">
-                                    <div className="activity-icon">
-                                        <i className="fas fa-book"></i>
-                                    </div>
-                                    <div className="activity-info">
-                                        <h4>New course published: "Python for Beginners"</h4>
-                                        <p>1 hour ago</p>
-                                    </div>
-                                </div>
-                                <div className="activity-item">
-                                    <div className="activity-icon">
-                                        <i className="fas fa-dollar-sign"></i>
-                                    </div>
-                                    <div className="activity-info">
-                                        <h4>New transaction: Rp 1,250,000</h4>
-                                        <p>2 hours ago</p>
-                                    </div>
-                                </div>
-                                <div className="activity-item">
-                                    <div className="activity-icon">
-                                        <i className="fas fa-user-tie"></i>
-                                    </div>
-                                    <div className="activity-info">
-                                        <h4>New mentor approved: Sarah Johnson</h4>
-                                        <p>3 hours ago</p>
-                                    </div>
-                                </div>
-                                <div className="activity-item">
-                                    <div className="activity-icon">
-                                        <i className="fas fa-star"></i>
-                                    </div>
-                                    <div className="activity-info">
-                                        <h4>Course "AR Learning" received 5-star review</h4>
-                                        <p>5 hours ago</p>
                                     </div>
                                 </div>
                             </div>

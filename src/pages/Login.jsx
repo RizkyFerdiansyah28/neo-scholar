@@ -12,66 +12,53 @@ function Login({ setIsLoggedIn }) {
     const [messageType, setMessageType] = useState('')
     const navigate = useNavigate()
 
-    const handleSubmit = (e) => {
-        e.preventDefault()
+    // Tambahkan async di sini
+const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    // ... (kode validasi yang sudah ada tetap sama) ...
 
-        // Reset errors
-        setEmailError('')
-        setPasswordError('')
-        setLoginMessage('')
-        setMessageType('')
+    if (isValid) {
+        try {
+            // Ganti URL ini dengan URL backend Anda nantinya
+            const response = await fetch('http://localhost:3000/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password, role }), // Kirim data login
+            });
 
-        let isValid = true
+            const data = await response.json();
 
-        // Validation
-        if (!email.trim()) {
-            setEmailError('Email/username tidak boleh kosong')
-            isValid = false
-        }
-
-        if (!password.trim()) {
-            setPasswordError('Password tidak boleh kosong')
-            isValid = false
-        } else if (password.length < 6) {
-            setPasswordError('Password minimal 6 karakter')
-            isValid = false
-        }
-
-        // If validation passes
-        if (isValid) {
-            const isSimpleValidation = email.trim().length > 3 && password.trim().length >= 6
-
-            if (isSimpleValidation) {
+            if (response.ok) {
                 setLoginMessage('Login berhasil! Mengalihkan...')
                 setMessageType('success')
 
-                // Save to localStorage
+                // Simpan data dari database ke localStorage
                 localStorage.setItem('userLoggedIn', 'true')
-                localStorage.setItem('username', email.split('@')[0])
-                localStorage.setItem('userRole', role)
+                localStorage.setItem('username', data.user.name) // Nama dari DB
+                localStorage.setItem('userRole', data.user.role) // Role dari DB
+                localStorage.setItem('userId', data.user.id)     // ID penting untuk relasi
+                
                 setIsLoggedIn(true)
 
-                // Redirect based on role
                 setTimeout(() => {
-                    switch (role) {
-                        case 'admin':
-                            navigate('/admin/dashboard')
-                            break
-                        case 'mentor':
-                            navigate('/mentor/dashboard')
-                            break
-                        case 'client':
-                        default:
-                            navigate('/dashboard')
-                            break
-                    }
+                    // Redirect logic tetap sama
+                    if (data.user.role === 'admin') navigate('/admin/dashboard')
+                    else if (data.user.role === 'mentor') navigate('/mentor/dashboard')
+                    else navigate('/dashboard')
                 }, 1500)
             } else {
-                setLoginMessage('Login gagal. Silakan periksa email dan password Anda.')
+                setLoginMessage(data.message || 'Login gagal.')
                 setMessageType('error')
             }
+        } catch (error) {
+            setLoginMessage('Terjadi kesalahan koneksi server.')
+            setMessageType('error')
         }
     }
+}
 
     const handleSocialLogin = () => {
         setLoginMessage('Login melalui sosial media diproses...')
