@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import MentorDashboard from './pages/MentorDashboard'
 import './styles/App.css'
+import Register from './pages/register'
 
 // Protected Route Component
 function ProtectedRoute({ children, isLoggedIn, requiredRole }) {
@@ -59,6 +60,8 @@ function App() {
                                 <Login setIsLoggedIn={setIsLoggedIn} />
                         }
                     />
+                    <Route path="/register" element={<Register />} />
+                    
                     <Route
                         path="/dashboard"
                         element={
@@ -86,6 +89,7 @@ function App() {
                     <Route path="/contact" element={<Contact isLoggedIn={isLoggedIn} />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/categories" element={<Categories isLoggedIn={isLoggedIn} />} />
+                    
                 </Routes>
                 <Footer />
             </div>

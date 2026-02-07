@@ -5,12 +5,23 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
     plugins: [react()],
     root: './',
-    publicDir: 'assets',
+    // Pastikan folder 'assets' ada di root proyek Anda. 
+    // Jika aset ada di dalam 'src/assets', hapus baris publicDir ini atau ubah ke 'public'.
+    publicDir: 'assets', 
     build: {
         outDir: 'dist',
         emptyOutDir: true,
     },
     server: {
         port: 3000,
+        // Tambahkan konfigurasi proxy ini
+        proxy: {
+            '/api': {
+                // Ganti 'neo-scholar' sesuai nama folder proyek Anda di htdocs
+                target: 'http://localhost/neo-scholar/', 
+                changeOrigin: true,
+                secure: false,
+            }
+        }
     }
 })
