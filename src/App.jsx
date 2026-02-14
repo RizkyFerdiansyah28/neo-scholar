@@ -10,35 +10,43 @@ import Categories from './pages/Categories'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import MentorDashboard from './pages/MentorDashboard'
+import Register from './pages/Register' // Perhatikan huruf besar/kecil sesuai file Anda
 import './styles/App.css'
-import Register from './pages/register'
 
-// Protected Route Component
-function ProtectedRoute({ children, isLoggedIn, requiredRole }) {
-    const userRole = localStorage.getItem('userRole')
+// --- MODIFIKASI: ProtectedRoute dengan Alert & Redirection ---
+function ProtectedRoute({ children, requiredRole }) {
+    // Kita ambil langsung dari localStorage untuk memastikan data persisten saat refresh
+    const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
+    const userRole = localStorage.getItem('userRole');
 
+    // 1. Jika belum login, tendang ke halaman login
     if (!isLoggedIn) {
-        return <Navigate to="/login" replace />
+        return <Navigate to="/login" replace />;
     }
 
+    // 2. Jika Role tidak sesuai dengan yang diminta halaman
     if (requiredRole && userRole !== requiredRole) {
-        // Redirect to appropriate dashboard based on actual role
+        // Tampilkan Peringatan
+        alert(`Akses Ditolak! Anda login sebagai "${userRole}", Anda tidak memiliki izin untuk mengakses halaman ${requiredRole}. Anda akan dikembalikan ke Dashboard Anda.`);
+        
+        // Redirect kembali ke dashboard yang BENAR sesuai role user
         if (userRole === 'admin') {
-            return <Navigate to="/admin/dashboard" replace />
+            return <Navigate to="/admin/dashboard" replace />;
         } else if (userRole === 'mentor') {
-            return <Navigate to="/mentor/dashboard" replace />
+            return <Navigate to="/mentor/dashboard" replace />;
         } else {
-            return <Navigate to="/dashboard" replace />
+            // Default untuk client/siswa
+            return <Navigate to="/dashboard" replace />;
         }
     }
 
-    return children
+    // 3. Jika lolos semua cek, tampilkan halaman
+    return children;
 }
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-    // Check login status on mount
     useEffect(() => {
         const userLoggedIn = localStorage.getItem('userLoggedIn')
         if (userLoggedIn === 'true') {
@@ -52,40 +60,54 @@ function App() {
                 <Header isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
                 <Routes>
                     <Route path="/" element={<Home isLoggedIn={isLoggedIn} />} />
+                    
+                    {/* Redirect user yang sudah login agar tidak bisa buka halaman login lagi */}
                     <Route
                         path="/login"
                         element={
-                            isLoggedIn ?
-                                <Navigate to="/dashboard" replace /> :
+                            isLoggedIn ? (
+                                // Cek role untuk redirect ke dashboard yang tepat jika sudah login
+                                localStorage.getItem('userRole') === 'admin' ? <Navigate to="/admin/dashboard" /> :
+                                localStorage.getItem('userRole') === 'mentor' ? <Navigate to="/mentor/dashboard" /> :
+                                <Navigate to="/dashboard" />
+                            ) : (
                                 <Login setIsLoggedIn={setIsLoggedIn} />
+                            )
                         }
                     />
+                    
                     <Route path="/register" element={<Register />} />
                     
+                    {/* --- RUTE DASHBOARD CLIENT/SISWA --- */}
                     <Route
                         path="/dashboard"
                         element={
-                            <ProtectedRoute isLoggedIn={isLoggedIn} requiredRole="client">
+                            <ProtectedRoute requiredRole="client">
                                 <Dashboard setIsLoggedIn={setIsLoggedIn} />
                             </ProtectedRoute>
                         }
                     />
+
+                    {/* --- RUTE DASHBOARD ADMIN --- */}
                     <Route
                         path="/admin/dashboard"
                         element={
-                            <ProtectedRoute isLoggedIn={isLoggedIn} requiredRole="admin">
+                            <ProtectedRoute requiredRole="admin">
                                 <AdminDashboard setIsLoggedIn={setIsLoggedIn} />
                             </ProtectedRoute>
                         }
                     />
+
+                    {/* --- RUTE DASHBOARD MENTOR --- */}
                     <Route
                         path="/mentor/dashboard"
                         element={
-                            <ProtectedRoute isLoggedIn={isLoggedIn} requiredRole="mentor">
+                            <ProtectedRoute requiredRole="mentor">
                                 <MentorDashboard setIsLoggedIn={setIsLoggedIn} />
                             </ProtectedRoute>
                         }
                     />
+
                     <Route path="/contact" element={<Contact isLoggedIn={isLoggedIn} />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/categories" element={<Categories isLoggedIn={isLoggedIn} />} />

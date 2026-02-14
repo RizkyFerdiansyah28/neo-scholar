@@ -10,13 +10,11 @@ function Login({ setIsLoggedIn }) {
     const [messageType, setMessageType] = useState('')
     const navigate = useNavigate()
 
+
     const handleSubmit = async (e) => {
         e.preventDefault()
-        
-        // Reset pesan error
         setLoginMessage('')
 
-        // Validasi sederhana
         if (!email || !password) {
             setLoginMessage('Email dan password wajib diisi!')
             setMessageType('error')
@@ -24,41 +22,40 @@ function Login({ setIsLoggedIn }) {
         }
 
         try {
-            // PENTING: Gunakan .php jika backend Anda PHP
             const response = await fetch('http://localhost:3000/api/login.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password, role }), 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, role }), // Role dikirim, tapi biasanya backend menentukan role asli user dari DB
             });
-
-            // Cek jika respons bukan JSON (misal error PHP)
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                throw new Error("Respon server bukan JSON. Cek error PHP.");
-            }
 
             const data = await response.json();
 
-            if (data.success) { // Pastikan backend mengirim { success: true }
+            if (data.success) {
                 setLoginMessage('Login berhasil! Mengalihkan...')
                 setMessageType('success')
 
-                // Simpan sesi
+                // Simpan data penting ke LocalStorage
                 localStorage.setItem('userLoggedIn', 'true')
                 localStorage.setItem('username', data.user.name || data.user.username)
-                localStorage.setItem('userRole', data.user.role)
+                localStorage.setItem('userRole', data.user.role) // PENTING: Role diambil dari database
                 localStorage.setItem('userId', data.user.id)
                 
                 setIsLoggedIn(true)
 
-                // Redirect
+                // --- LOGIKA REDIRECT SESUAI ROLE ---
                 setTimeout(() => {
-                    if (data.user.role === 'admin') navigate('/admin/dashboard')
-                    else if (data.user.role === 'mentor') navigate('/mentor/dashboard')
-                    else navigate('/dashboard')
+                    const userRole = data.user.role; // Ambil role dari respon server
+                    
+                    if (userRole === 'admin') {
+                        navigate('/admin/dashboard');
+                    } else if (userRole === 'mentor') {
+                        navigate('/mentor/dashboard');
+                    } else {
+                        // Default ke dashboard siswa/client
+                        navigate('/dashboard');
+                    }
                 }, 1500)
+
             } else {
                 setLoginMessage(data.message || 'Login gagal.')
                 setMessageType('error')
@@ -69,6 +66,8 @@ function Login({ setIsLoggedIn }) {
             setMessageType('error')
         }
     }
+
+// ... sisa kode komponen ...
 
     const handleSocialLogin = () => {
         alert("Fitur login sosial belum tersedia.")

@@ -19,7 +19,7 @@ function AdminDashboard({ setIsLoggedIn }) {
     // Reports Modal State
     const [showReportsModal, setShowReportsModal] = useState(false)
 
-    // Data States - Inisialisasi dengan array kosong
+    // Data States
     const [users, setUsers] = useState([])
     const [courses, setCourses] = useState([])
 
@@ -29,25 +29,19 @@ function AdminDashboard({ setIsLoggedIn }) {
             try {
                 setIsLoading(true);
 
-                // 1. Ambil data Users dari Backend
-                const usersResponse = await fetch('http://localhost:8000/users.php');
-                const usersData = await usersResponse.json();
-                setUsers(usersData);
+                // Menggunakan Promise.all agar fetch berjalan paralel (lebih cepat)
+                // Pastikan port sesuai dengan backend Anda (biasanya 3000 atau 8000)
+                const [usersRes, coursesRes] = await Promise.all([
+                    fetch('http://localhost:3000/api/users.php'),
+                    fetch('http://localhost:3000/api/courses.php')
+                ]);
 
-                // 2. Ambil data Courses dari Backend
-                const coursesResponse = await fetch('http://localhost:8000/courses.php');
+                const usersData = await usersRes.json();
+                const coursesData = await coursesRes.json();
 
-                // 3. Di fungsi handleSave
-                // Perhatikan penambahan "?id=" untuk PUT/DELETE karena PHP menangkapnya lewat $_GET['id']
-                let url = modalType === 'user'
-                    ? 'http://localhost:8000/users.php'
-                    : 'http://localhost:8000/courses.php';
-
-                if (modalMode === 'edit' || modalMode === 'delete') {
-                    url += `?id=${data.id}`; // Ubah format URL agar sesuai dengan PHP $_GET['id']
-                }
-                const coursesData = await coursesResponse.json();
-                setCourses(coursesData);
+                // Pastikan data berupa array sebelum diset ke state
+                setUsers(Array.isArray(usersData) ? usersData : []);
+                setCourses(Array.isArray(coursesData) ? coursesData : []);
 
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
@@ -60,7 +54,7 @@ function AdminDashboard({ setIsLoggedIn }) {
     }, []);
 
     useEffect(() => {
-        // Check if user is logged in and is admin
+        // Cek login dan role admin
         const userLoggedIn = localStorage.getItem('userLoggedIn')
         const userRole = localStorage.getItem('userRole')
         const storedUsername = localStorage.getItem('username')
@@ -68,13 +62,39 @@ function AdminDashboard({ setIsLoggedIn }) {
         if (!userLoggedIn || userLoggedIn !== 'true') {
             navigate('/login')
         } else if (userRole !== 'admin') {
+            alert('Akses Ditolak. Halaman ini hanya untuk Admin.');
             navigate(userRole === 'mentor' ? '/mentor/dashboard' : '/dashboard')
         } else {
             setUsername(storedUsername || 'Admin')
         }
     }, [navigate])
 
-    // CRUD Functions
+    // --- PERHITUNGAN STATISTIK DARI DATABASE ---
+    const totalUsers = users.length;
+    
+    // Hitung mentor (Filter berdasarkan role 'mentor')
+    // Jika ada kolom status, bisa ditambahkan: && u.status === 'active'
+    const activeMentors = users.filter(u => u.role === 'mentor').length;
+    
+    const totalCourses = courses.length;
+    
+    // Hitung Revenue (Simulasi: Menjumlahkan harga semua course yang ada)
+    // Note: Idealnya ini diambil dari tabel 'transactions' jika ada.
+    const totalRevenue = courses.reduce((acc, curr) => {
+        return acc + (parseFloat(curr.price) || 0);
+    }, 0);
+
+    // Format Rupiah
+    const formatRupiah = (number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(number);
+    }
+
+    // --- FUNGSI CRUD ---
     const handleCreateUser = () => {
         setModalMode('create')
         setModalType('user')
@@ -117,37 +137,33 @@ function AdminDashboard({ setIsLoggedIn }) {
         setShowModal(true)
     }
 
-    // Fungsi Handle Save yang Terhubung ke API
     const handleSave = async (data) => {
         try {
-            // Tentukan URL berdasarkan tipe data (users atau courses)
-            // Menggunakan plural (user -> users, course -> courses)
             let endpoint = modalType === 'user' ? 'users' : 'courses';
-            let url = `http://localhost:3000/api/${endpoint}`;
+            // Gunakan file .php
+            let url = `http://localhost:3000/api/${endpoint}.php`; 
             let method = 'POST';
 
-            // Jika Edit atau Delete, tambahkan ID ke URL
             if (modalMode === 'edit' || modalMode === 'delete') {
-                url += `/${data.id}`;
+                // PHP API Anda menggunakan ?id= di query string untuk PUT/DELETE (berdasarkan users.php yg Anda upload)
+                if (modalMode === 'edit') method = 'PUT';
+                if (modalMode === 'delete') method = 'DELETE';
+                
+                // Tambahkan ID ke URL query string karena PHP menangkapnya lewat $_GET['id']
+                url += `?id=${data.id}`;
             }
 
-            // Tentukan HTTP Method
-            if (modalMode === 'edit') method = 'PUT';
-            if (modalMode === 'delete') method = 'DELETE';
-
-            // Kirim Request ke Backend
             const response = await fetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                // Body dikirim kecuali untuk metode DELETE
                 body: modalMode === 'delete' ? null : JSON.stringify(data)
             });
 
             if (response.ok) {
-                // Jika sukses, refresh data dari server agar tampilan update
-                const refreshRes = await fetch(`http://localhost:3000/api/${endpoint}`);
+                // Refresh data setelah save sukses
+                const refreshRes = await fetch(`http://localhost:3000/api/${endpoint}.php`);
                 const refreshData = await refreshRes.json();
 
                 if (modalType === 'user') {
@@ -155,11 +171,8 @@ function AdminDashboard({ setIsLoggedIn }) {
                 } else {
                     setCourses(refreshData);
                 }
-
-                // Opsional: Tampilkan pesan sukses kecil
-                // alert(`Data ${modalType} berhasil ${modalMode === 'create' ? 'dibuat' : modalMode === 'edit' ? 'diubah' : 'dihapus'}!`);
+                setShowModal(false); // Tutup modal otomatis setelah save
             } else {
-                console.error("Server responded with error");
                 alert('Gagal menyimpan perubahan ke database.');
             }
         } catch (error) {
@@ -168,21 +181,11 @@ function AdminDashboard({ setIsLoggedIn }) {
         }
     }
 
-    const handleLogout = () => {
-        localStorage.removeItem('userLoggedIn')
-        localStorage.removeItem('username')
-        localStorage.removeItem('userRole')
-        if (setIsLoggedIn) {
-            setIsLoggedIn(false)
-        }
-        navigate('/')
-    }
-
     if (isLoading) {
         return (
             <div className="dashboard-loading">
                 <div className="spinner"></div>
-                <p>Loading Admin Dashboard...</p>
+                <p>Memuat Data Dashboard...</p>
             </div>
         )
     }
@@ -202,14 +205,15 @@ function AdminDashboard({ setIsLoggedIn }) {
             {/* Dashboard Content */}
             <div className="dashboard-content">
                 <div className="container">
-                    {/* Stats Cards */}
+                    {/* Stats Cards - DATA DINAMIS */}
                     <div className="stats-grid">
                         <div className="stat-card">
                             <div className="stat-icon">
                                 <i className="fas fa-users"></i>
                             </div>
                             <div className="stat-info">
-                                <h3>{users.length}</h3>
+                                {/* Menggunakan data totalUsers */}
+                                <h3>{totalUsers}</h3>
                                 <p>Total Users</p>
                             </div>
                         </div>
@@ -218,7 +222,8 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <i className="fas fa-chalkboard-teacher"></i>
                             </div>
                             <div className="stat-info">
-                                <h3>{users.filter(u => u.role === 'mentor').length}</h3>
+                                {/* Menggunakan data activeMentors */}
+                                <h3>{activeMentors}</h3>
                                 <p>Active Mentors</p>
                             </div>
                         </div>
@@ -227,7 +232,8 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <i className="fas fa-book"></i>
                             </div>
                             <div className="stat-info">
-                                <h3>{courses.length}</h3>
+                                {/* Menggunakan data totalCourses */}
+                                <h3>{totalCourses}</h3>
                                 <p>Total Courses</p>
                             </div>
                         </div>
@@ -236,8 +242,9 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <i className="fas fa-dollar-sign"></i>
                             </div>
                             <div className="stat-info">
-                                <h3>Rp 45.2M</h3>
-                                <p>Monthly Revenue</p>
+                                {/* Menggunakan data totalRevenue yang diformat */}
+                                <h3>{formatRupiah(totalRevenue)}</h3>
+                                <p>Est. Total Nilai Kursus</p>
                             </div>
                         </div>
                     </div>
@@ -262,7 +269,7 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <h3 className="quick-action-title">Add Course</h3>
                                 <p className="quick-action-desc">Create new course</p>
                             </div>
-                            <div className="quick-action-card" onClick={() => handleCreateUser()}>
+                            <div className="quick-action-card" onClick={handleCreateUser}>
                                 <div className="quick-action-icon">
                                     <i className="fas fa-user-tie"></i>
                                 </div>
@@ -315,12 +322,12 @@ function AdminDashboard({ setIsLoggedIn }) {
                                                     </td>
                                                     <td>
                                                         <span className={`badge badge-${user.role}`}>
-                                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                                            {user.role}
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        <span className={`status-${user.status}`}>
-                                                            {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                                                        <span className={`status-${user.status || 'active'}`}>
+                                                            {user.status || 'Active'}
                                                         </span>
                                                     </td>
                                                     <td>
@@ -363,17 +370,16 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <div className="courses-list">
                                     {courses.map((course) => (
                                         <div key={course.id} className="course-item">
-                                            {/* Handle image display if URL is not perfect */}
                                             <img
-                                                src={course.image_url || course.image || '/images/default-course.jpg'}
+                                                src={course.image_url || '/images/default-course.jpg'}
                                                 alt={course.title}
                                                 onError={(e) => { e.target.src = 'https://via.placeholder.com/150' }}
                                             />
                                             <div className="course-info">
                                                 <h3>{course.title}</h3>
                                                 <p className="course-stats">
-                                                    <i className="fas fa-users"></i> {course.students || course.total_students || 0} Students •
-                                                    <i className="fas fa-star"></i> {course.rating || 0}
+                                                    {/* Menampilkan harga kursus */}
+                                                    <strong>{formatRupiah(course.price)}</strong>
                                                 </p>
                                                 <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                                                     <button
@@ -392,32 +398,6 @@ function AdminDashboard({ setIsLoggedIn }) {
                                             </div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent Activity */}
-                    <div className="dashboard-section full-width">
-                        <div className="admin-card">
-                            <div className="admin-card-header">
-                                <div className="admin-card-title">
-                                    <div className="admin-card-icon">
-                                        <i className="fas fa-history"></i>
-                                    </div>
-                                    Recent Activity
-                                </div>
-                            </div>
-                            <div className="activity-list">
-                                {/* Activity items can be fetched from API later */}
-                                <div className="activity-item">
-                                    <div className="activity-icon">
-                                        <i className="fas fa-user-plus"></i>
-                                    </div>
-                                    <div className="activity-info">
-                                        <h4>New user registered: Ahmad Rizki</h4>
-                                        <p>5 minutes ago</p>
-                                    </div>
                                 </div>
                             </div>
                         </div>
