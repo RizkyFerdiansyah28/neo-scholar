@@ -1,0 +1,321 @@
+/* Layout Utama */
+.mentor-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f4f7fa;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* --- SIDEBAR --- */
+.mentor-sidebar {
+    width: 260px;
+    background: #ffffff;
+    border-right: 1px solid #e1e4e8;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    position: fixed;
+    height: 100vh;
+}
+
+.sidebar-header {
+    margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-header h2 {
+    font-size: 1.2rem;
+    color: #333;
+    margin: 0;
+}
+
+.badge-mentor {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.sidebar-nav button {
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 12px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #64748b;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s;
+}
+
+.sidebar-nav button:hover, .sidebar-nav button.active {
+    background: #f1f5f9;
+    color: #2563eb;
+    font-weight: 500;
+}
+
+.btn-logout {
+    margin-top: auto;
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    padding: 12px;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: bold;
+}
+
+/* --- MAIN CONTENT --- */
+.mentor-content {
+    margin-left: 260px; /* Lebar sidebar */
+    flex: 1;
+    padding: 30px;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.welcome-text h1 {
+    font-size: 1.5rem;
+    margin: 0 0 5px 0;
+    color: #1e293b;
+}
+
+.welcome-text p {
+    color: #64748b;
+    margin: 0;
+}
+
+.header-avatar img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* --- COURSES GRID --- */
+.section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.course-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+}
+
+.course-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-img {
+    position: relative;
+    height: 150px;
+}
+
+.card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.course-type {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.card-body {
+    padding: 15px;
+}
+
+.card-body h3 {
+    font-size: 1rem;
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.price {
+    font-weight: bold;
+    color: #2563eb;
+    margin-bottom: 15px;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+}
+
+.btn-icon.edit { background: #f59e0b; }
+.btn-icon.delete { background: #ef4444; }
+
+/* --- PROFILE FORM --- */
+.profile-form-container {
+    display: flex;
+    gap: 30px;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.profile-left {
+    width: 250px;
+    text-align: center;
+    border-right: 1px solid #f0f0f0;
+    padding-right: 30px;
+}
+
+.avatar-upload {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.avatar-upload img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #f8fafc;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.btn-upload-avatar {
+    display: block;
+    margin-top: 10px;
+    color: #2563eb;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.mentor-stats {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.stat-value {
+    font-weight: bold;
+    color: #333;
+}
+
+.profile-right {
+    flex: 1;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.form-group input, .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.form-group input:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.btn-save-profile {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-save-profile:hover {
+    background: #1d4ed8;
+}
+
+.loading-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}

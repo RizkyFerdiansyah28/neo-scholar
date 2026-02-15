@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import "../styles/CRUDModal.css";
 
 function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
-  // Catatan: prop 'type' di atas adalah tipe modal (user/course), jangan bingung dengan kolom database 'type'
-
   const [formData, setFormData] = useState({
     id: "",
-    name: "",
+    name: "", // Di React kita pakai 'name' untuk input
     email: "",
     role: "client",
     status: "active",
@@ -14,15 +12,17 @@ function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
     description: "",
     price: "",
     image: null,
-    type: "", // <--- Ganti category jadi type
+    type: "",
   });
 
   useEffect(() => {
     if (data && (mode === "edit" || mode === "delete")) {
       setFormData({
         ...data,
+        // PERBAIKAN: Mapping 'username' dari database ke 'name' di form
+        name: data.name || data.username || "", 
         image: null,
-        type: data.type || data.category || "", // Handle jika data lama masih pakai nama key category
+        type: data.type || data.category || "",
       });
     } else {
       setFormData({
@@ -35,7 +35,7 @@ function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
         description: "",
         price: "",
         image: null,
-        type: "", // Reset type
+        type: "",
       });
     }
   }, [data, mode, isOpen]);
@@ -51,13 +51,13 @@ function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    // Kembalikan 'name' form menjadi 'username' agar sesuai database saat disimpan
+    const payload = { ...formData, username: formData.name };
+    onSave(payload);
     onClose();
   };
 
   if (!isOpen) return null;
-
-  // ... (Bagian Header & Delete logic sama seperti sebelumnya) ...
 
   return (
     <div className="crud-modal-overlay" onClick={onClose}>
@@ -74,46 +74,65 @@ function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
 
         {mode === "delete" ? (
           <div className="crud-modal-body">
-            <p>Are you sure you want to delete?</p>
+            <p>Are you sure you want to delete <strong>{formData.name || formData.title}</strong>?</p>
             <div className="delete-actions">
-              <button className="btn-cancel" onClick={onClose}>
-                Cancel
-              </button>
-              <button
-                className="btn-delete"
-                onClick={() => {
-                  onSave(data);
-                  onClose();
-                }}>
-                Delete
-              </button>
+              <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn-delete" onClick={() => { onSave(data); onClose(); }}>Delete</button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="crud-modal-body">
+              {/* --- PERBAIKAN: FORM USER DITAMBAHKAN DI SINI --- */}
               {type === "user" ? (
-                <div>{/* Form User Tetap */}</div>
-              ) : (
                 <>
                   <div className="form-group">
-                    <label>Course Title</label>
+                    <label>Full Name / Username</label>
                     <input
                       type="text"
-                      name="title"
-                      value={formData.title}
+                      name="name" // State tetap 'name'
+                      value={formData.name}
                       onChange={handleChange}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label>Description</label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
                       onChange={handleChange}
                       required
-                      rows="4"></textarea>
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role</label>
+                    <select name="role" value={formData.role} onChange={handleChange}>
+                      <option value="client">Client</option>
+                      <option value="mentor">Mentor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  {/* Status opsional jika ada di DB */}
+                  <div className="form-group">
+                    <label>Status</label>
+                    <select name="status" value={formData.status} onChange={handleChange}>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                /* --- FORM COURSE (TIDAK BERUBAH) --- */
+                <>
+                  <div className="form-group">
+                    <label>Course Title</label>
+                    <input type="text" name="title" value={formData.title} onChange={handleChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea name="description" value={formData.description} onChange={handleChange} required rows="4"></textarea>
                   </div>
                   <div className="form-group">
                     <label>Price</label>
@@ -124,41 +143,13 @@ function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       required
-                      onChange={(e) => {
-                        const value = e.target.value;
-
-                        // hanya izinkan angka
-                        if (/^\d*$/.test(value)) {
-                          handleChange(e);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        // cegah karakter selain angka
-                        if (
-                          e.key === "e" ||
-                          e.key === "E" ||
-                          e.key === "+" ||
-                          e.key === "-" ||
-                          e.key === "." ||
-                          e.key === ","
-                        ) {
-                          e.preventDefault();
-                        }
-                      }}
+                      onChange={(e) => /^\d*$/.test(e.target.value) && handleChange(e)}
                     />
                   </div>
-
-                  {/* --- INPUT TYPE (DULU CATEGORY) --- */}
                   <div className="form-group">
                     <label>Type</label>
-                    <select
-                      name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      required>
-                      <option value="" disabled>
-                        Select Type
-                      </option>
+                    <select name="type" value={formData.type} onChange={handleChange} required>
+                      <option value="" disabled>Select Type</option>
                       <option value="ar-vr">AR/VR</option>
                       <option value="animation">Animation</option>
                       <option value="programming">Programming</option>
@@ -166,27 +157,16 @@ function CRUDModal({ isOpen, onClose, mode, type, data, onSave }) {
                       <option value="other">Other</option>
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label>Course Image (Upload)</label>
-                    <input
-                      type="file"
-                      name="image"
-                      onChange={handleChange}
-                      accept="image/*"
-                      className="file-input"
-                    />
+                    <input type="file" name="image" onChange={handleChange} accept="image/*" className="file-input" />
                   </div>
                 </>
               )}
             </div>
             <div className="crud-modal-footer">
-              <button type="button" className="btn-cancel" onClick={onClose}>
-                Cancel
-              </button>
-              <button type="submit" className="btn-save">
-                Save
-              </button>
+              <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn-save">Save</button>
             </div>
           </form>
         )}

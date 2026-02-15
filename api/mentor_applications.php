@@ -13,34 +13,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 include_once 'config/database.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
-
-// Ambil user_id dari parameter URL (untuk filter)
 $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 
 switch ($method) {
     case 'GET':
         if ($user_id) {
-            // Cek status pengajuan user tertentu (untuk Dashboard User)
             $stmt = $conn->prepare("SELECT * FROM mentor_applications WHERE user_id = ? ORDER BY id DESC LIMIT 1");
             $stmt->execute([$user_id]);
             $application = $stmt->fetch(PDO::FETCH_ASSOC);
             echo json_encode($application ? $application : ["status" => "none"]);
         } else {
-            // Ambil semua pengajuan pending (untuk Dashboard Admin)
-            // Join dengan tabel users untuk dapat nama
-            $sql = "SELECT ma.*, u.name, u.email 
+            // PERBAIKAN PENTING DI SINI:
+            // 1. Menggunakan 'u.username' sesuai CSV database Anda (bukan u.name)
+            // 2. Menggunakan 'AS name' agar React tetap bisa membacanya sebagai 'name'
+            // 3. Tetap pakai LEFT JOIN untuk keamanan jika data user rusak
+            
+            $sql = "SELECT ma.*, 
+                           IFNULL(u.username, 'Unknown User') as name, 
+                           IFNULL(u.email, 'No Email') as email 
                     FROM mentor_applications ma 
-                    JOIN users u ON ma.user_id = u.id 
+                    LEFT JOIN users u ON ma.user_id = u.id 
                     WHERE ma.status = 'pending' 
                     ORDER BY ma.created_at ASC";
-            $stmt = $conn->query($sql);
-            $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            echo json_encode($applications);
+            
+            try {
+                $stmt = $conn->query($sql);
+                $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode($applications);
+            } catch (PDOException $e) {
+                // Tampilkan error jika nama kolom masih salah
+                http_response_code(500);
+                echo json_encode(["message" => "Database Error: " . $e->getMessage()]);
+            }
         }
         break;
 
     case 'POST':
-        // User mengajukan diri
         $data = json_decode(file_get_contents("php://input"));
         
         if (empty($data->user_id)) {
@@ -49,7 +57,7 @@ switch ($method) {
             exit();
         }
 
-        // Cek apakah sudah ada pengajuan pending
+        // Cek duplikasi
         $check = $conn->prepare("SELECT id FROM mentor_applications WHERE user_id = ? AND status = 'pending'");
         $check->execute([$data->user_id]);
         if ($check->rowCount() > 0) {
@@ -69,7 +77,6 @@ switch ($method) {
         break;
 
     case 'PUT':
-        // Admin menyetujui/menolak
         $data = json_decode(file_get_contents("php://input"));
         
         if (empty($data->id) || empty($data->status)) {
@@ -81,13 +88,10 @@ switch ($method) {
         try {
             $conn->beginTransaction();
 
-            // 1. Update status aplikasi
             $stmt = $conn->prepare("UPDATE mentor_applications SET status = ? WHERE id = ?");
             $stmt->execute([$data->status, $data->id]);
 
-            // 2. Jika approved, update role user jadi 'mentor'
             if ($data->status === 'approved') {
-                // Ambil user_id dari aplikasi ini
                 $getApp = $conn->prepare("SELECT user_id FROM mentor_applications WHERE id = ?");
                 $getApp->execute([$data->id]);
                 $row = $getApp->fetch(PDO::FETCH_ASSOC);

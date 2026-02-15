@@ -22,31 +22,46 @@ function AdminDashboard({ setIsLoggedIn }) {
     // Data States
     const [users, setUsers] = useState([])
     const [courses, setCourses] = useState([])
+    const [mentorApplications, setMentorApplications] = useState([]) // State untuk aplikasi mentor
 
     // Load data from API on mount
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                setIsLoading(true);
+            setIsLoading(true);
 
-                // PERBAIKAN 1: Gunakan '/api' (mengandalkan Proxy di vite.config.js)
-                // Tambahkan timestamp untuk mencegah cache
-                const [usersRes, coursesRes] = await Promise.all([
-                    fetch(`/api/users.php?t=${Date.now()}`),
-                    fetch(`/api/courses.php?t=${Date.now()}`)
-                ]);
+            // Fungsi fetch yang aman: Jika gagal, return array kosong agar tidak error
+            const safeFetch = async (url) => {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) return [];
+                    const text = await res.text();
+                    try {
+                        const json = JSON.parse(text);
+                        // Jika API return error object (bukan array), anggap kosong
+                        if (json.message && !Array.isArray(json)) return [];
+                        return Array.isArray(json) ? json : [];
+                    } catch (e) {
+                        console.error(`Error parsing JSON from ${url}`, e);
+                        return [];
+                    }
+                } catch (error) {
+                    console.error(`Network error ${url}`, error);
+                    return [];
+                }
+            };
 
-                const usersData = await usersRes.json();
-                const coursesData = await coursesRes.json();
+            // Ambil semua data secara paralel
+            const [usersData, coursesData, appsData] = await Promise.all([
+                safeFetch(`/api/users.php?t=${Date.now()}`),
+                safeFetch(`/api/courses.php?t=${Date.now()}`),
+                safeFetch(`/api/mentor_applications.php?t=${Date.now()}`)
+            ]);
 
-                setUsers(Array.isArray(usersData) ? usersData : []);
-                setCourses(Array.isArray(coursesData) ? coursesData : []);
+            setUsers(usersData);
+            setCourses(coursesData);
+            setMentorApplications(appsData);
 
-            } catch (error) {
-                console.error("Gagal mengambil data:", error);
-            } finally {
-                setIsLoading(false);
-            }
+            setIsLoading(false);
         };
 
         fetchData();
@@ -70,6 +85,7 @@ function AdminDashboard({ setIsLoggedIn }) {
     // --- PERHITUNGAN STATISTIK ---
     const totalUsers = users.length;
     const activeMentors = users.filter(u => u.role === 'mentor').length;
+    const pendingMentors = mentorApplications.length;
     const totalCourses = courses.length;
     const totalRevenue = courses.reduce((acc, curr) => {
         return acc + (parseFloat(curr.price) || 0);
@@ -84,7 +100,7 @@ function AdminDashboard({ setIsLoggedIn }) {
         }).format(number);
     }
 
-    // --- FUNGSI CRUD ---
+    // --- FUNGSI CRUD (User & Course) ---
     const handleCreateUser = () => { setModalMode('create'); setModalType('user'); setSelectedData(null); setShowModal(true); }
     const handleEditUser = (user) => { setModalMode('edit'); setModalType('user'); setSelectedData(user); setShowModal(true); }
     const handleDeleteUser = (user) => { setModalMode('delete'); setModalType('user'); setSelectedData(user); setShowModal(true); }
@@ -93,24 +109,58 @@ function AdminDashboard({ setIsLoggedIn }) {
     const handleEditCourse = (course) => { setModalMode('edit'); setModalType('course'); setSelectedData(course); setShowModal(true); }
     const handleDeleteCourse = (course) => { setModalMode('delete'); setModalType('course'); setSelectedData(course); setShowModal(true); }
 
-    // --- FUNGSI SIMPAN (Disamakan dengan MentorDashboard) ---
+    // --- FUNGSI APPROVE/REJECT MENTOR ---
+    const handleApplicationStatus = async (id, status) => {
+        const actionText = status === 'approved' ? 'menyetujui' : 'menolak';
+        if (!window.confirm(`Apakah Anda yakin ingin ${actionText} pengajuan ini?`)) return;
+
+        try {
+            const response = await fetch('/api/mentor_applications.php', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(result.message);
+                // Refresh data aplikasi
+                const refreshApps = await fetch(`/api/mentor_applications.php?t=${Date.now()}`);
+                const appsData = await refreshApps.json();
+                setMentorApplications(Array.isArray(appsData) ? appsData : []);
+                
+                // Jika diapprove, refresh juga data user karena role berubah jadi mentor
+                if (status === 'approved') {
+                    const refreshUsers = await fetch(`/api/users.php?t=${Date.now()}`);
+                    const usersData = await refreshUsers.json();
+                    setUsers(Array.isArray(usersData) ? usersData : []);
+                }
+            } else {
+                alert('Gagal: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error updating application:', error);
+            alert('Terjadi kesalahan koneksi.');
+        }
+    };
+
+    // --- FUNGSI SIMPAN MODAL ---
     const handleSave = async (data) => {
         try {
             let endpoint = modalType === 'user' ? 'users' : 'courses';
-            let url = `/api/${endpoint}.php`; // Gunakan path relative
+            let url = `/api/${endpoint}.php`; 
             let options = {};
 
-            // A. LOGIKA UNTUK COURSE (Pakai FormData agar upload gambar jalan)
             if (modalType === 'course') {
                 if (modalMode === 'delete') {
-                     // Delete Course
                      options = {
                         method: 'DELETE',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: data.id })
                     };
                 } else {
-                    // Create / Edit Course
+                    // Pakai FormData untuk Course (karena ada upload file)
                     const formData = new FormData();
                     if (data.id) formData.append('id', data.id);
                     
@@ -119,7 +169,6 @@ function AdminDashboard({ setIsLoggedIn }) {
                     formData.append('price', data.price);
                     formData.append('type', data.type); 
                     
-                    // Admin perlu set mentor_id (default ke user yg login atau ID 1)
                     const currentUserId = localStorage.getItem('userId') || '1';
                     formData.append('mentor_id', currentUserId);
 
@@ -128,29 +177,23 @@ function AdminDashboard({ setIsLoggedIn }) {
                     }
 
                     options = {
-                        method: 'POST', // Selalu POST untuk FormData
+                        method: 'POST',
                         body: formData
                     };
                 }
             } 
-            // B. LOGIKA UNTUK USER (Pakai JSON biasa)
             else {
+                // Pakai JSON untuk User
                 if (modalMode === 'delete') {
                      options = {
-                        method: 'POST', // Asumsi users.php pakai POST untuk delete atau sesuaikan
+                        method: 'POST', 
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: data.id, action: 'delete' }) // Sesuaikan jika backend butuh flag action
+                        body: JSON.stringify({ id: data.id, action: 'delete' }) 
                     };
-                    // Jika users.php support DELETE method murni:
-                    // options.method = 'DELETE';
-                    // options.body = JSON.stringify({ id: data.id });
-                    
-                    // Jaga-jaga pakai query param kalau method DELETE strict:
                     if (modalMode === 'delete') url += `?id=${data.id}`;
                     options = { method: 'DELETE' };
 
                 } else {
-                    // Create / Edit User
                     options = {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -160,18 +203,17 @@ function AdminDashboard({ setIsLoggedIn }) {
             }
 
             const response = await fetch(url, options);
-
-            // Parsing response aman
             const responseText = await response.text();
+            
             try {
                 const jsonRes = JSON.parse(responseText);
                 if (response.ok) {
-                    // Refresh data
+                    // Refresh data setelah save
                     const refreshRes = await fetch(`/api/${endpoint}.php?t=${Date.now()}`);
                     const refreshData = await refreshRes.json();
 
-                    if (modalType === 'user') setUsers(refreshData);
-                    else setCourses(refreshData);
+                    if (modalType === 'user') setUsers(Array.isArray(refreshData) ? refreshData : []);
+                    else setCourses(Array.isArray(refreshData) ? refreshData : []);
 
                     setShowModal(false);
                 } else {
@@ -179,7 +221,6 @@ function AdminDashboard({ setIsLoggedIn }) {
                 }
             } catch (e) {
                 console.error("Error parsing JSON:", e);
-                console.log("Response:", responseText);
                 alert('Terjadi kesalahan server.');
             }
         } catch (error) {
@@ -196,7 +237,7 @@ function AdminDashboard({ setIsLoggedIn }) {
             <div className="dashboard-header">
                 <div className="container">
                     <div className="dashboard-welcome">
-                        <h1>Admin Dashboard 捉窶昨汳ｼ</h1>
+                        <h1>Admin Dashboard 🛡️</h1>
                         <p>Selamat datang, {username}! Kelola platform NeoScholar dengan mudah</p>
                     </div>
                 </div>
@@ -216,8 +257,8 @@ function AdminDashboard({ setIsLoggedIn }) {
                             <div className="stat-info"><h3>{activeMentors}</h3><p>Active Mentors</p></div>
                         </div>
                         <div className="stat-card">
-                            <div className="stat-icon"><i className="fas fa-book"></i></div>
-                            <div className="stat-info"><h3>{totalCourses}</h3><p>Total Courses</p></div>
+                            <div className="stat-icon"><i className="fas fa-file-signature"></i></div>
+                            <div className="stat-info"><h3>{pendingMentors}</h3><p>Pending Mentors</p></div>
                         </div>
                         <div className="stat-card">
                             <div className="stat-icon"><i className="fas fa-dollar-sign"></i></div>
@@ -239,10 +280,10 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <h3 className="quick-action-title">Add Course</h3>
                                 <p className="quick-action-desc">Create new course</p>
                             </div>
-                            <div className="quick-action-card" onClick={handleCreateUser}>
+                            <div className="quick-action-card" onClick={() => document.getElementById('mentor-applications').scrollIntoView({ behavior: 'smooth' })}>
                                 <div className="quick-action-icon"><i className="fas fa-user-tie"></i></div>
-                                <h3 className="quick-action-title">Add Mentor</h3>
-                                <p className="quick-action-desc">Register new mentor</p>
+                                <h3 className="quick-action-title">Review Mentors</h3>
+                                <p className="quick-action-desc">Check {pendingMentors} pending apps</p>
                             </div>
                             <div className="quick-action-card" onClick={() => setShowReportsModal(true)}>
                                 <div className="quick-action-icon"><i className="fas fa-chart-line"></i></div>
@@ -254,6 +295,56 @@ function AdminDashboard({ setIsLoggedIn }) {
 
                     {/* Main Grid */}
                     <div className="dashboard-grid">
+                        
+                        {/* TABEL APLIKASI MENTOR (BARU) */}
+                        <div className="dashboard-section full-width" id="mentor-applications">
+                            <div className="admin-card">
+                                <div className="admin-card-header">
+                                    <div className="admin-card-title"><i className="fas fa-envelope-open-text"></i> Mentor Applications</div>
+                                </div>
+                                <div className="admin-table">
+                                    {mentorApplications.length === 0 ? (
+                                        <p style={{ padding: '20px', textAlign: 'center', color: '#666' }}>Tidak ada pengajuan mentor baru.</p>
+                                    ) : (
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>User Name</th>
+                                                    <th>Email</th>
+                                                    <th>Date Applied</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {mentorApplications.map((app) => (
+                                                    <tr key={app.id}>
+                                                        <td><strong>{app.name}</strong></td>
+                                                        <td>{app.email}</td>
+                                                        <td>{new Date(app.created_at).toLocaleDateString('id-ID')}</td>
+                                                        <td>
+                                                            <button 
+                                                                className="btn-sm btn-success" 
+                                                                style={{ marginRight: '8px' }}
+                                                                onClick={() => handleApplicationStatus(app.id, 'approved')}
+                                                            >
+                                                                <i className="fas fa-check"></i> Approve
+                                                            </button>
+                                                            <button 
+                                                                className="btn-sm btn-danger"
+                                                                onClick={() => handleApplicationStatus(app.id, 'rejected')}
+                                                            >
+                                                                <i className="fas fa-times"></i> Reject
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* User Management */}
                         <div className="dashboard-section">
                             <div className="admin-card">
@@ -267,7 +358,7 @@ function AdminDashboard({ setIsLoggedIn }) {
                                         <tbody>
                                             {users.map((user) => (
                                                 <tr key={user.id}>
-                                                    <td><strong>{user.name}</strong><br /><small style={{ color: '#718096' }}>{user.email}</small></td>
+                                                    <td><strong>{user.name || user.username}</strong><br /><small style={{ color: '#718096' }}>{user.email}</small></td>
                                                     <td><span className={`badge badge-${user.role}`}>{user.role}</span></td>
                                                     <td><span className={`status-${user.status || 'active'}`}>{user.status || 'Active'}</span></td>
                                                     <td>
@@ -292,7 +383,6 @@ function AdminDashboard({ setIsLoggedIn }) {
                                 <div className="courses-list">
                                     {courses.map((course) => (
                                         <div key={course.id} className="course-item">
-                                            {/* PERBAIKAN 2: Image Source Logic disamakan dengan Mentor */}
                                             <img
                                                 src={`${course.image}?t=${Date.now()}`}
                                                 alt={course.title}
