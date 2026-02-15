@@ -7,7 +7,7 @@ import '../styles/Dashboard.css'
 function MentorDashboard({ setIsLoggedIn }) {
     const navigate = useNavigate()
     const [username, setUsername] = useState('')
-    const [userId, setUserId] = useState(null) // Simpan User ID di state
+    const [userId, setUserId] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
     
     const [showChatModal, setShowChatModal] = useState(false)
@@ -20,22 +20,23 @@ function MentorDashboard({ setIsLoggedIn }) {
 
     // Data dummy students
     const students = [
-        { id: 1, name: 'Ahmad Rizki', course: 'Video Animasi', image: '/images/mentors/debbi.jpeg', progress: 75 },
-        { id: 2, name: 'Siti Nurhaliza', course: 'AR Struktur Bumi', image: '/images/mentors/jawad.jpeg', progress: 45 }
+        { id: 1, name: 'Ahmad Rizki', course: 'Video Animasi', image: '/assets/images/mentors/debbi.jpeg', progress: 75 },
+        { id: 2, name: 'Siti Nurhaliza', course: 'AR Struktur Bumi', image: '/assets/images/mentors/jawad.jpeg', progress: 45 }
     ]
 
-    // --- FETCH COURSES BY MENTOR ID ---
+    // --- FETCH COURSES ---
     const fetchCourses = async (currentUserId) => {
         try {
-            // Kirim parameter mentor_id ke API
-            const response = await fetch(`http://localhost:3000/api/courses.php?mentor_id=${currentUserId}`);
+            // Menggunakan /api (Vite Proxy akan mengarahkannya ke XAMPP)
+            // Tambahkan timestamp untuk menghindari cache data
+            const response = await fetch(`/api/courses.php?mentor_id=${currentUserId}&t=${Date.now()}`);
             const data = await response.json();
             
-            // Handle jika data kosong atau error
             if (Array.isArray(data)) {
+                // Pastikan data stats ada
                 const formattedData = data.map(item => ({
                     ...item,
-                    stats: '0 Students • New'
+                    stats: item.stats || '0 Students • Active'
                 }));
                 setMyCourses(formattedData);
             } else {
@@ -43,6 +44,7 @@ function MentorDashboard({ setIsLoggedIn }) {
             }
         } catch (error) {
             console.error("Gagal mengambil data course:", error);
+            setMyCourses([]);
         }
     }
 
@@ -50,7 +52,7 @@ function MentorDashboard({ setIsLoggedIn }) {
         const userLoggedIn = localStorage.getItem('userLoggedIn')
         const userRole = localStorage.getItem('userRole')
         const storedUsername = localStorage.getItem('username')
-        const storedUserId = localStorage.getItem('userId') // Ambil ID dari Login
+        const storedUserId = localStorage.getItem('userId')
 
         if (!userLoggedIn || userLoggedIn !== 'true') {
             navigate('/login')
@@ -58,10 +60,9 @@ function MentorDashboard({ setIsLoggedIn }) {
             navigate(userRole === 'admin' ? '/admin/dashboard' : '/dashboard')
         } else {
             setUsername(storedUsername || 'Mentor')
-            setUserId(storedUserId) // Set ID ke state
+            setUserId(storedUserId)
             setIsLoading(false)
             
-            // Panggil fetch dengan ID yang baru diambil dari localStorage
             if (storedUserId) {
                 fetchCourses(storedUserId);
             }
@@ -91,59 +92,91 @@ function MentorDashboard({ setIsLoggedIn }) {
         setShowCrudModal(true)
     }
 
-
+    // --- FUNGSI SAVE (UPLOAD & UPDATE) ---
     const handleSaveCourse = async (formDataState) => {
         try {
+            // Gunakan FormData agar file gambar terkirim dengan benar
             const formData = new FormData();
             
+            // Masukkan data teks
             formData.append('title', formDataState.title);
             formData.append('description', formDataState.description);
             formData.append('price', formDataState.price);
-            
-            // --- GANTI DI SINI ---
-            // Kirim 'type' bukan 'category'
             formData.append('type', formDataState.type); 
             
+            // Masukkan Mentor ID
             if (userId) formData.append('mentor_id', userId);
             
+            // Jika Edit/Delete, butuh ID
             if (crudMode === 'edit' || crudMode === 'delete') {
                 formData.append('id', formDataState.id);
             }
 
+            // Masukkan File Gambar HANYA jika ada file baru yang dipilih
             if (formDataState.image instanceof File) {
                 formData.append('image', formDataState.image);
             }
 
-            let url = 'http://localhost:3000/api/courses.php';
+            // Tentukan Endpoint & Method
+            // Kita gunakan POST untuk Create & Edit (karena PHP handle via FormData)
+            let url = '/api/courses.php'; 
             let method = 'POST';
+            let bodyData = formData;
 
+            // Khusus DELETE
             if (crudMode === 'delete') {
                 method = 'DELETE';
-                url = `http://localhost:3000/api/courses.php?id=${formDataState.id}`;
+                // Jika server PHP support DELETE body JSON:
+                bodyData = JSON.stringify({ id: formDataState.id }); 
+                // Header JSON diperlukan jika mengirim JSON body
             }
 
             const options = {
                 method: method,
-                body: crudMode === 'delete' ? null : formData 
+                body: bodyData
             };
+            
+            // Tambahkan header JSON khusus untuk DELETE (jika pakai JSON)
+            if (crudMode === 'delete') {
+               options.headers = { 'Content-Type': 'application/json' };
+            }
 
             const response = await fetch(url, options);
-            const result = await response.json();
+            
+            // Cek respons text dulu untuk jaga-jaga jika bukan JSON
+            const responseText = await response.text();
 
-            if (response.ok) {
-                alert(result.message);
-                fetchCourses(userId);
-            } else {
-                alert("Gagal: " + result.message);
+            try {
+                const result = JSON.parse(responseText);
+                if (response.ok) {
+                    alert(result.message || 'Berhasil!');
+                    fetchCourses(userId); // Refresh list
+                    setShowCrudModal(false); // Tutup modal
+                } else {
+                    alert("Gagal: " + (result.message || 'Terjadi kesalahan'));
+                }
+            } catch (jsonError) {
+                console.error("Error parsing JSON:", jsonError, responseText);
+                alert("Server Error (Respons tidak valid)");
             }
+
         } catch (error) {
-            console.error("Error:", error);
+            console.error("Error saving:", error);
             alert("Terjadi kesalahan koneksi.");
         }
     }
 
-    // ... sisa code ...
-    if (isLoading) return <div className="dashboard-loading">Loading...</div>
+    // Fungsi Format Rupiah
+    const formatRupiah = (number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(number);
+    }
+
+    if (isLoading) return <div className="dashboard-loading"><div className="spinner"></div>Loading...</div>
 
     return (
         <div className="dashboard mentor-dashboard">
@@ -167,8 +200,7 @@ function MentorDashboard({ setIsLoggedIn }) {
                                 <p>Active Courses</p>
                             </div>
                         </div>
-                        {/* ... Stats lainnya ... */}
-                         <div className="stat-card">
+                        <div className="stat-card">
                             <div className="stat-icon"><i className="fas fa-users"></i></div>
                             <div className="stat-info"><h3>45</h3><p>Total Students</p></div>
                         </div>
@@ -183,6 +215,7 @@ function MentorDashboard({ setIsLoggedIn }) {
                     </div>
 
                     <div className="dashboard-grid">
+                        {/* Students Section */}
                         <div className="dashboard-section">
                             <div className="section-header">
                                 <h2>My Students</h2>
@@ -191,7 +224,7 @@ function MentorDashboard({ setIsLoggedIn }) {
                             <div className="mentors-list">
                                 {students.map((student) => (
                                     <div key={student.id} className="mentor-item">
-                                        <img src={student.image} alt={student.name} />
+                                        <img src={student.image} alt={student.name} onError={(e) => e.target.src='https://via.placeholder.com/50'} />
                                         <div className="mentor-info">
                                             <h4>{student.name}</h4>
                                             <p>{student.course}</p>
@@ -222,14 +255,27 @@ function MentorDashboard({ setIsLoggedIn }) {
                                 ) : (
                                     myCourses.map((course) => (
                                         <div key={course.id} className="course-item">
+                                            {/* PERBAIKAN GAMBAR:
+                                                1. Menggunakan course.image langsung (karena Proxy /assets sudah aktif).
+                                                2. Menambahkan timestamp (?t=...) agar gambar update saat diedit.
+                                                3. Menambahkan onError ke path yang BENAR (/assets/...) atau placeholder.
+                                            */}
                                             <img 
-                                                src={course.image || '/images/products/Tamplateedukasi.jpeg'} 
+                                                src={`${course.image}?t=${Date.now()}`} 
                                                 alt={course.title} 
-                                                onError={(e) => e.target.src = '/images/products/Tamplateedukasi.jpeg'}
+                                                onError={(e) => {
+                                                    e.target.onerror = null; 
+                                                    // Gunakan path lengkap /assets/... jika path database relatif, atau placeholder online
+                                                    e.target.src = 'https://via.placeholder.com/150?text=No+Image';
+                                                }}
+                                                style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
                                             />
                                             <div className="course-info">
                                                 <h3>{course.title}</h3>
-                                                <p className="course-stats">{course.price}</p>
+                                                <p className="course-stats">
+                                                    <strong>{formatRupiah(course.price)}</strong>
+                                                    <span style={{fontSize:'12px', color:'#666', marginLeft:'8px'}}>({course.type})</span>
+                                                </p>
                                                 <div style={{ marginTop: '10px' }}>
                                                     <button className="btn btn-sm btn-primary" onClick={() => handleEditCourseClick(course)} style={{ marginRight: '5px' }}>Edit</button>
                                                     <button className="btn btn-sm btn-danger" onClick={() => handleDeleteCourseClick(course)}>Delete</button>
@@ -263,7 +309,7 @@ function MentorDashboard({ setIsLoggedIn }) {
                 isOpen={showCrudModal}
                 onClose={() => setShowCrudModal(false)}
                 mode={crudMode}
-                type="course"
+                type="course" // Pastikan type modal 'course'
                 data={selectedCourse}
                 onSave={handleSaveCourse}
             />
