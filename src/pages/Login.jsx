@@ -5,11 +5,10 @@ import '../styles/Login.css'
 function Login({ setIsLoggedIn }) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [role, setRole] = useState('client') // Default role
+    const [role, setRole] = useState('client') // Default role dropdown
     const [loginMessage, setLoginMessage] = useState('')
     const [messageType, setMessageType] = useState('')
     const navigate = useNavigate()
-
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -25,7 +24,9 @@ function Login({ setIsLoggedIn }) {
             const response = await fetch('http://localhost:3000/api/login.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, role }), // Role dikirim, tapi biasanya backend menentukan role asli user dari DB
+                body: JSON.stringify({ email, password }), 
+                // Note: Role biasanya tidak dikirim untuk validasi login, 
+                // tapi diambil dari hasil response database.
             });
 
             const data = await response.json();
@@ -37,21 +38,22 @@ function Login({ setIsLoggedIn }) {
                 // Simpan data penting ke LocalStorage
                 localStorage.setItem('userLoggedIn', 'true')
                 localStorage.setItem('username', data.user.name || data.user.username)
-                localStorage.setItem('userRole', data.user.role) // PENTING: Role diambil dari database
+                localStorage.setItem('userRole', data.user.role) 
+                
+                // PENTING: ID User diperlukan untuk pengajuan mentor
                 localStorage.setItem('userId', data.user.id)
                 
                 setIsLoggedIn(true)
 
-                // --- LOGIKA REDIRECT SESUAI ROLE ---
+                // Redirect sesuai Role dari Database
                 setTimeout(() => {
-                    const userRole = data.user.role; // Ambil role dari respon server
+                    const userRole = data.user.role;
                     
                     if (userRole === 'admin') {
                         navigate('/admin/dashboard');
                     } else if (userRole === 'mentor') {
                         navigate('/mentor/dashboard');
                     } else {
-                        // Default ke dashboard siswa/client
                         navigate('/dashboard');
                     }
                 }, 1500)
@@ -67,17 +69,12 @@ function Login({ setIsLoggedIn }) {
         }
     }
 
-// ... sisa kode komponen ...
-
-    const handleSocialLogin = () => {
-        alert("Fitur login sosial belum tersedia.")
-    }
-
     return (
         <section className="login-container">
             <div className="login-card">
                 <h2 className="login-title">Login ke NeoScholar</h2>
                 <form onSubmit={handleSubmit} className="login-form">
+                    {/* Dropdown role hanya visual di sini, karena role asli dari DB */}
                     <div className="form-group">
                         <label htmlFor="role" className="form-label">Login Sebagai</label>
                         <select
@@ -131,7 +128,6 @@ function Login({ setIsLoggedIn }) {
                 </div>
 
                 <div className="register-link">
-                    {/* Pastikan menggunakan Link, bukan <a> agar tidak refresh halaman */}
                     <p>Belum punya akun? <Link to="/register">Daftar Pengguna Baru</Link></p>
                 </div>
             </div>
@@ -139,5 +135,4 @@ function Login({ setIsLoggedIn }) {
     )
 }
 
-// INI BAGIAN PENTING YANG HILANG SEBELUMNYA
 export default Login

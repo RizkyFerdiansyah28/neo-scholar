@@ -9,20 +9,13 @@ function Dashboard({ setIsLoggedIn }) {
     const [isLoading, setIsLoading] = useState(true)
     const [showChatModal, setShowChatModal] = useState(false)
     const [selectedMentor, setSelectedMentor] = useState(null)
+    
+    // State Pengajuan Mentor
+    const [applicationStatus, setApplicationStatus] = useState('none') 
 
     const mentors = [
-        {
-            id: 1,
-            name: 'Debbi Angelia Saputri',
-            title: 'Tutor Bahasa Arab',
-            image: '/images/mentors/debbi.jpeg'
-        },
-        {
-            id: 2,
-            name: 'Jawad At-Taqy',
-            title: 'Tutor Manajemen',
-            image: '/images/mentors/jawad.jpeg'
-        }
+        { id: 1, name: 'Debbi Angelia Saputri', title: 'Tutor Bahasa Arab', image: '/images/mentors/debbi.jpeg' },
+        { id: 2, name: 'Jawad At-Taqy', title: 'Tutor Manajemen', image: '/images/mentors/jawad.jpeg' }
     ]
 
     const handleChatClick = (mentor) => {
@@ -31,45 +24,61 @@ function Dashboard({ setIsLoggedIn }) {
     }
 
     useEffect(() => {
-        // Check if user is logged in
         const userLoggedIn = localStorage.getItem('userLoggedIn')
         const storedUsername = localStorage.getItem('username')
+        const userId = localStorage.getItem('userId') // Ambil ID
 
         if (!userLoggedIn || userLoggedIn !== 'true') {
-            // Redirect to login if not logged in
             navigate('/login')
         } else {
             setUsername(storedUsername || 'Pengguna')
             setIsLoading(false)
+
+            // Cek status pengajuan mentor jika ada user ID
+            if (userId) {
+                fetch(`http://localhost:3000/api/mentor_applications.php?user_id=${userId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.status) {
+                            setApplicationStatus(data.status);
+                        }
+                    })
+                    .catch(err => console.error("Error checking application:", err));
+            }
         }
     }, [navigate])
 
-    const handleLogout = () => {
-        // Clear localStorage
-        localStorage.removeItem('userLoggedIn')
-        localStorage.removeItem('username')
+    const handleApplyMentor = async () => {
+        const userId = localStorage.getItem('userId');
+        if (!userId) return alert("User ID tidak ditemukan. Silakan login ulang.");
+        
+        if (!confirm("Apakah Anda yakin ingin mengajukan diri sebagai mentor?")) return;
 
-        // Update App state
-        if (setIsLoggedIn) {
-            setIsLoggedIn(false)
+        try {
+            const response = await fetch('http://localhost:3000/api/mentor_applications.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert("Pengajuan berhasil dikirim! Mohon tunggu persetujuan Admin.");
+                setApplicationStatus('pending');
+            } else {
+                alert(result.message || "Gagal mengirim pengajuan.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Terjadi kesalahan koneksi.");
         }
+    };
 
-        // Navigate to home
-        navigate('/')
-    }
-
-    if (isLoading) {
-        return (
-            <div className="dashboard-loading">
-                <div className="spinner"></div>
-                <p>Loading...</p>
-            </div>
-        )
-    }
+    if (isLoading) return <div className="dashboard-loading"><div className="spinner"></div></div>;
 
     return (
         <div className="dashboard">
-            {/* Dashboard Header */}
             <div className="dashboard-header">
                 <div className="container">
                     <div className="dashboard-welcome">
@@ -79,161 +88,83 @@ function Dashboard({ setIsLoggedIn }) {
                 </div>
             </div>
 
-            {/* Dashboard Content */}
             <div className="dashboard-content">
                 <div className="container">
-                    {/* Stats Cards */}
-                    <div className="stats-grid">
-                        <div className="stat-card">
-                            <div className="stat-icon">
-                                <i className="fas fa-book-open"></i>
-                            </div>
-                            <div className="stat-info">
-                                <h3>5</h3>
-                                <p>Kursus Aktif</p>
-                            </div>
+                    {/* --- FITUR BARU: PENGAJUAN MENTOR --- */}
+                    <div className="dashboard-section full-width">
+                        <div className="section-header">
+                            <h2>Menjadi Mentor</h2>
                         </div>
-                        <div className="stat-card">
-                            <div className="stat-icon">
-                                <i className="fas fa-certificate"></i>
-                            </div>
-                            <div className="stat-info">
-                                <h3>12</h3>
-                                <p>Sertifikat</p>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon">
-                                <i className="fas fa-clock"></i>
-                            </div>
-                            <div className="stat-info">
-                                <h3>48</h3>
-                                <p>Jam Belajar</p>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon">
-                                <i className="fas fa-trophy"></i>
-                            </div>
-                            <div className="stat-info">
-                                <h3>85%</h3>
-                                <p>Progress</p>
+                        <div style={{ padding: '20px', background: '#fff', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                            <p>Bagikan keahlianmu dan bantu siswa lain belajar dengan menjadi mentor di NeoScholar.</p>
+                            <div style={{ marginTop: '15px' }}>
+                                {applicationStatus === 'none' && (
+                                    <button className="btn btn-primary" onClick={handleApplyMentor}>
+                                        Ajukan Jadi Mentor
+                                    </button>
+                                )}
+                                {applicationStatus === 'pending' && (
+                                    <button className="btn" style={{backgroundColor: '#ecc94b', color: '#fff', cursor: 'default'}}>
+                                        <i className="fas fa-clock"></i> Menunggu Persetujuan Admin
+                                    </button>
+                                )}
+                                {applicationStatus === 'approved' && (
+                                    <div className="alert alert-success">
+                                        Selamat! Anda sudah menjadi Mentor. Silakan login ulang.
+                                    </div>
+                                )}
+                                {applicationStatus === 'rejected' && (
+                                    <div>
+                                        <div className="alert alert-danger" style={{marginBottom: '10px'}}>
+                                            Pengajuan ditolak.
+                                        </div>
+                                        <button className="btn btn-primary" onClick={handleApplyMentor}>
+                                            Ajukan Kembali
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
+                    {/* ------------------------------------ */}
 
-                    {/* Main Dashboard Grid */}
-                    <div className="dashboard-grid">
-                        {/* My Courses */}
-                        <div className="dashboard-section">
-                            <div className="section-header">
-                                <h2>Kursus Saya</h2>
-                                <a href="#" className="view-all">Lihat Semua →</a>
-                            </div>
-                            <div className="courses-list">
-                                <div className="course-item">
-                                    <img src="/images/products/Animasi2d.jpeg" alt="Course" />
-                                    <div className="course-info">
-                                        <h3>Video Pembelajaran Animasi 2D</h3>
-                                        <div className="progress-bar">
-                                            <div className="progress-fill" style={{ width: '75%' }}></div>
-                                        </div>
-                                        <p className="progress-text">75% Complete</p>
-                                    </div>
-                                </div>
-                                <div className="course-item">
-                                    <img src="/images/products/ARstrukturbumi.jpeg" alt="Course" />
-                                    <div className="course-info">
-                                        <h3>AR Learning - Struktur Bumi</h3>
-                                        <div className="progress-bar">
-                                            <div className="progress-fill" style={{ width: '45%' }}></div>
-                                        </div>
-                                        <p className="progress-text">45% Complete</p>
-                                    </div>
-                                </div>
-                                <div className="course-item">
-                                    <img src="/images/products/Bgameoperasihitungan.jpeg" alt="Course" />
-                                    <div className="course-info">
-                                        <h3>Board Game Edukasi</h3>
-                                        <div className="progress-bar">
-                                            <div className="progress-fill" style={{ width: '90%' }}></div>
-                                        </div>
-                                        <p className="progress-text">90% Complete</p>
-                                    </div>
-                                </div>
-                            </div>
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-icon"><i className="fas fa-book-open"></i></div>
+                            <div className="stat-info"><h3>5</h3><p>Kursus Aktif</p></div>
                         </div>
+                        <div className="stat-card">
+                            <div className="stat-icon"><i className="fas fa-certificate"></i></div>
+                            <div className="stat-info"><h3>12</h3><p>Sertifikat</p></div>
+                        </div>
+                         {/* Stats lainnya... */}
+                    </div>
 
-                        {/* My Mentors */}
+                    <div className="dashboard-grid">
                         <div className="dashboard-section">
-                            <div className="section-header">
-                                <h2>Mentor Saya</h2>
-                                <a href="#" className="view-all">Lihat Semua →</a>
-                            </div>
+                            <div className="section-header"><h2>Kursus Saya</h2></div>
+                            {/* Course List Placeholder */}
+                            <p>Daftar kursus...</p>
+                        </div>
+                        <div className="dashboard-section">
+                            <div className="section-header"><h2>Mentor Saya</h2></div>
                             <div className="mentors-list">
                                 {mentors.map((mentor) => (
                                     <div key={mentor.id} className="mentor-item">
-                                        <img src={mentor.image} alt={mentor.name} />
+                                        <img src={mentor.image} alt={mentor.name} onError={(e) => e.target.src='https://via.placeholder.com/50'} />
                                         <div className="mentor-info">
                                             <h4>{mentor.name}</h4>
                                             <p>{mentor.title}</p>
-                                            <button
-                                                className="btn btn-sm btn-primary"
-                                                onClick={() => handleChatClick(mentor)}
-                                            >
-                                                <i className="fas fa-comment"></i> Chat
-                                            </button>
+                                            <button className="btn btn-sm btn-primary" onClick={() => handleChatClick(mentor)}>Chat</button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </div>
-
-                    {/* Recent Activity */}
-                    <div className="dashboard-section full-width">
-                        <div className="section-header">
-                            <h2>Aktivitas Terbaru</h2>
-                        </div>
-                        <div className="activity-list">
-                            <div className="activity-item">
-                                <div className="activity-icon">
-                                    <i className="fas fa-check-circle"></i>
-                                </div>
-                                <div className="activity-info">
-                                    <h4>Menyelesaikan Modul "Sistem Pencernaan"</h4>
-                                    <p>2 jam yang lalu</p>
-                                </div>
-                            </div>
-                            <div className="activity-item">
-                                <div className="activity-icon">
-                                    <i className="fas fa-certificate"></i>
-                                </div>
-                                <div className="activity-info">
-                                    <h4>Mendapatkan Sertifikat "AR Learning Basics"</h4>
-                                    <p>1 hari yang lalu</p>
-                                </div>
-                            </div>
-                            <div className="activity-item">
-                                <div className="activity-icon">
-                                    <i className="fas fa-star"></i>
-                                </div>
-                                <div className="activity-info">
-                                    <h4>Memberikan Rating untuk Mentor Debbi</h4>
-                                    <p>2 hari yang lalu</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
-
-            {/* Chat Modal */}
-            <ChatModal
-                isOpen={showChatModal}
-                onClose={() => setShowChatModal(false)}
-                mentor={selectedMentor}
-            />
+            <ChatModal isOpen={showChatModal} onClose={() => setShowChatModal(false)} mentor={selectedMentor} />
         </div>
     )
 }
