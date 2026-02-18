@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom' // 1. Import useNavigate
-import '../styles/Products.css' // Pastikan nama file CSS sesuai
+import { Link, useNavigate } from 'react-router-dom' 
+import '../styles/Products.css' 
 
 function Products() {
     const [products, setProducts] = useState([])
     const [loading, setLoading] = useState(true)
     const [filterType, setFilterType] = useState('All')
     
-    // 2. Inisialisasi navigasi
     const navigate = useNavigate()
 
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                // Pastikan URL API ini benar sesuai folder project Anda di htdocs
-                const response = await fetch('http://localhost/neo-skul/api/courses.php');
+                // PERBAIKAN 1: Gunakan path relatif (sesuai proxy vite.config.js)
+                // Atau ganti 'neo-skul' menjadi 'neo-scholar' jika pakai path lengkap
+                const response = await fetch('/api/courses.php'); 
+                
                 if (!response.ok) throw new Error('Network response was not ok');
                 const data = await response.json();
                 setProducts(data);
@@ -28,48 +29,53 @@ function Products() {
         fetchProducts();
     }, []);
 
-    // 3. FUNGSI BARU: Simpan ke LocalStorage & Pindah Halaman
     const handleBuy = async (product) => {
-    // 1. Ambil ID User dari Login yang sudah diperbaiki tadi
-    const userId = localStorage.getItem('user_id');
+        const userId = localStorage.getItem('user_id');
 
-    // Debugging: Cek di console browser apakah ID muncul
-    console.log("User ID:", userId); 
-    console.log("Course ID:", product.id);
+        console.log("User ID:", userId); 
+        console.log("Course ID:", product.id);
 
-    if (!userId || userId === 'undefined') {
-        alert("Silakan login terlebih dahulu (Session User ID hilang).");
-        // navigate('/login'); // Uncomment jika ingin redirect
-        return;
-    }
-
-    try {
-        // 2. Kirim ke Database
-        const response = await fetch('http://localhost/neo-skul/api/cart.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                user_id: userId,
-                course_id: product.id // Pastikan properti ini 'course_id' sesuai api/cart.php
-            }),
-        });
-
-        const result = await response.json();
-        
-        if (response.ok) {
-            alert("Berhasil masuk keranjang!");
-            navigate('/cart');
-        } else {
-            alert("Gagal: " + result.message);
+        if (!userId || userId === 'undefined') {
+            alert("Silakan login terlebih dahulu.");
+            // navigate('/login'); 
+            return;
         }
 
-    } catch (error) {
-        console.error("Error:", error);
-        alert("Terjadi kesalahan koneksi ke server.");
+        try {
+            // PERBAIKAN 2: Gunakan path relatif agar sesuai dengan folder 'neo-scholar'
+            const response = await fetch('/api/cart.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    course_id: product.id 
+                }),
+            });
+
+            // Cek dulu apakah response berhasil sebelum parse JSON
+            // untuk menghindari error jika server mengirim HTML (error 404/500)
+            const resultText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(resultText);
+            } catch (e) {
+                throw new Error("Respon server bukan JSON: " + resultText);
+            }
+            
+            if (response.ok) {
+                alert("Berhasil masuk keranjang!");
+                navigate('/cart');
+            } else {
+                alert("Gagal: " + result.message);
+            }
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Terjadi kesalahan koneksi ke server.");
+        }
     }
-}
 
     const filteredProducts = filterType === 'All' 
         ? products 
@@ -119,7 +125,6 @@ function Products() {
                                     <div className="product-footer">
                                         <span className="product-price">Rp {parseInt(item.price).toLocaleString('id-ID')}</span>
                                         
-                                        {/* 4. TOMBOL BELI YANG SUDAH DIPERBAIKI */}
                                         <button 
                                             className="btn-buy"
                                             onClick={() => handleBuy(item)}

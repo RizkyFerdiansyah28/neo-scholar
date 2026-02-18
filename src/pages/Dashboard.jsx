@@ -44,8 +44,8 @@ function Dashboard({ setIsLoggedIn }) {
             if(userId) {
                 console.log("DEBUG: Memulai fetch ke API my_courses.php...");
                 
-                // Pastikan URL benar: /neo-skul/api/...
-                fetch(`http://localhost/neo-skul/api/my_courses.php?user_id=${userId}`)
+                // Pastikan URL benar: /neo-scholar/api/...
+                fetch(`http://localhost/neo-scholar/api/my_courses.php?user_id=${userId}`)
                     .then(res => {
                         // Cek apakah response OK (status 200)
                         if (!res.ok) {
@@ -82,7 +82,7 @@ function Dashboard({ setIsLoggedIn }) {
             // --- 2. CEK STATUS MENTOR (OPTIONAL) ---
             // Saya bungkus try-catch agar tidak mematikan halaman jika error
             if (userId) {
-                fetch(`http://localhost/neo-skul/api/mentor_applications.php?user_id=${userId}`)
+                fetch(`http://localhost/neo-scholar/api/mentor_applications.php?user_id=${userId}`)
                     .then(res => res.json())
                     .then(data => {
                         if (data && data.status) {
@@ -101,7 +101,7 @@ function Dashboard({ setIsLoggedIn }) {
         if (!confirm("Apakah Anda yakin ingin mengajukan diri sebagai mentor?")) return;
 
         try {
-            const response = await fetch('http://localhost/neo-skul/api/mentor_applications.php', {
+            const response = await fetch('http://localhost/neo-scholar/api/mentor_applications.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId })
@@ -207,7 +207,7 @@ function Dashboard({ setIsLoggedIn }) {
                                             {/* --- GAMBAR KURSUS --- */}
                                             <img 
                                                 /* Menggunakan path dari database + path server */
-                                                src={`http://localhost/neo-skul${course.image}`} 
+                                                src={`http://localhost/neo-scholar${course.image}`} 
                                                 alt={course.title} 
                                                 style={{
                                                     width: '100%', 

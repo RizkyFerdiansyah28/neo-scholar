@@ -21,7 +21,7 @@ const Checkout = () => {
         const fetchCart = async () => {
             try {
                 // Pastikan URL API sesuai dengan nama folder di htdocs (neo-scholar atau neo-skul)
-                const response = await fetch(`http://localhost/neo-skul/api/cart.php?user_id=${userId}`);
+                const response = await fetch(`http://localhost/neo-scholar/api/cart.php?user_id=${userId}`);
                 const data = await response.json();
                 
                 if (Array.isArray(data)) {
@@ -82,7 +82,7 @@ const Checkout = () => {
         formData.append('items', JSON.stringify(itemsPayload));
 
         try {
-            const response = await fetch('http://localhost/neo-skul/api/checkout.php', {
+            const response = await fetch('http://localhost/neo-scholar/api/checkout.php', {
                 method: 'POST',
                 body: formData,
             });

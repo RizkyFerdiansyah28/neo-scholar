@@ -34,7 +34,7 @@ function AdminDashboard({ setIsLoggedIn }) {
 
     const fetchTransactions = async () => {
     try {
-        const res = await fetch('http://localhost/neo-skul/api/admin_transactions.php');
+        const res = await fetch('http://localhost/neo-scholar/api/admin_transactions.php');
         const data = await res.json();
         setTransactions(data);
     } catch (error) {
@@ -46,7 +46,7 @@ function AdminDashboard({ setIsLoggedIn }) {
     if(!confirm(`Yakin ingin mengubah status menjadi ${newStatus}?`)) return;
 
     try {
-        const res = await fetch('http://localhost/neo-skul/api/admin_transactions.php', {
+        const res = await fetch('http://localhost/neo-scholar/api/admin_transactions.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ transaction_id: id, status: newStatus })
@@ -374,9 +374,9 @@ function AdminDashboard({ setIsLoggedIn }) {
                                         </td>
                                         <td>
                                             {trx.proof_image ? (
-                                                <a href={`http://localhost/neo-skul${trx.proof_image}`} target="_blank" rel="noreferrer">
+                                                <a href={`http://localhost/neo-scholar${trx.proof_image}`} target="_blank" rel="noreferrer">
                                                     <img 
-                                                        src={`http://localhost/neo-skul${trx.proof_image}`} 
+                                                        src={`http://localhost/neo-scholar${trx.proof_image}`} 
                                                         alt="Bukti" 
                                                         className="proof-thumb"
                                                         title="Klik untuk memperbesar"

@@ -21,7 +21,7 @@ const Cart = () => {
             console.log("Fetching cart for User ID:", userId); // DEBUG 1
 
             try {
-                const response = await fetch(`http://localhost/neo-skul/api/cart.php?user_id=${userId}`);
+                const response = await fetch(`http://localhost/neo-scholar/api/cart.php?user_id=${userId}`);
                 const data = await response.json();
                 
                 console.log("Data dari API:", data); // DEBUG 2: Cek apakah data masuk?
@@ -46,7 +46,7 @@ const Cart = () => {
     const handleRemove = async (cartId) => {
         if(!confirm("Hapus item ini?")) return;
         try {
-            const response = await fetch('http://localhost/neo-skul/api/cart.php', {
+            const response = await fetch('http://localhost/neo-scholar/api/cart.php', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cart_id: cartId })
