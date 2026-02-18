@@ -5,7 +5,9 @@ import '../styles/Login.css'
 function Login({ setIsLoggedIn }) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [role, setRole] = useState('client') // Default role dropdown
+    // Role sebenarnya tidak dipakai untuk logic login (karena dari DB), 
+    // tapi dibiarkan jika ingin fitur visual dropdown tetap ada
+    const [role, setRole] = useState('client') 
     const [loginMessage, setLoginMessage] = useState('')
     const [messageType, setMessageType] = useState('')
     const navigate = useNavigate()
@@ -21,12 +23,11 @@ function Login({ setIsLoggedIn }) {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/api/login.php', {
+            // Pastikan URL mengarah ke folder project XAMPP Anda
+            const response = await fetch('http://localhost/neo-scholar/api/login.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }), 
-                // Note: Role biasanya tidak dikirim untuk validasi login, 
-                // tapi diambil dari hasil response database.
             });
 
             const data = await response.json();
@@ -35,14 +36,21 @@ function Login({ setIsLoggedIn }) {
                 setLoginMessage('Login berhasil! Mengalihkan...')
                 setMessageType('success')
 
-                // Simpan data penting ke LocalStorage
+                // --- BAGIAN PENTING YANG DIPERBAIKI ---
                 localStorage.setItem('userLoggedIn', 'true')
                 localStorage.setItem('username', data.user.name || data.user.username)
-                localStorage.setItem('userRole', data.user.role) 
+                localStorage.setItem('userRole', data.user.role)
                 
-                // PENTING: ID User diperlukan untuk pengajuan mentor
-                localStorage.setItem('userId', data.user.id)
+                // UBAH DARI 'userId' MENJADI 'user_id' (pakai underscore)
+                // Ini agar cocok dengan Product.jsx dan Cart.jsx
+                localStorage.setItem('user_id', data.user.id) 
                 
+                // Opsional: Simpan avatar jika ada
+                if (data.user.avatar) {
+                    localStorage.setItem('userAvatar', data.user.avatar)
+                }
+                // --------------------------------------
+
                 setIsLoggedIn(true)
 
                 // Redirect sesuai Role dari Database
@@ -64,7 +72,7 @@ function Login({ setIsLoggedIn }) {
             }
         } catch (error) {
             console.error("Login Error:", error);
-            setLoginMessage('Terjadi kesalahan koneksi server.')
+            setLoginMessage('Terjadi kesalahan koneksi server (Pastikan XAMPP aktif).')
             setMessageType('error')
         }
     }
@@ -74,7 +82,7 @@ function Login({ setIsLoggedIn }) {
             <div className="login-card">
                 <h2 className="login-title">Login ke NeoScholar</h2>
                 <form onSubmit={handleSubmit} className="login-form">
-                    {/* Dropdown role hanya visual di sini, karena role asli dari DB */}
+                    {/* Visual Dropdown */}
                     <div className="form-group">
                         <label htmlFor="role" className="form-label">Login Sebagai</label>
                         <select
@@ -117,7 +125,7 @@ function Login({ setIsLoggedIn }) {
                     <button type="submit" className="login-button">Login</button>
                     
                     {loginMessage && (
-                        <div className={`login-message ${messageType}`} style={{marginTop: '1rem', color: messageType === 'error' ? 'red' : 'green'}}>
+                        <div className={`login-message ${messageType}`} style={{marginTop: '1rem', color: messageType === 'error' ? 'red' : 'green', textAlign:'center'}}>
                             {loginMessage}
                         </div>
                     )}

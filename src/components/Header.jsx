@@ -51,6 +51,11 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
         navigate(getDashboardPath())
     }
 
+    const handleCartClick = () => {
+        setProfileDropdownOpen(false)
+        navigate('/Cart')
+    }
+
     const getUsername = () => {
         return localStorage.getItem('username') || 'User'
     }
@@ -118,16 +123,13 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                     </Link>
                     <ul className={`nav-links ${mobileMenuOpen ? 'active' : ''}`}>
                         <li>
-                            <a
-                                href="#product"
-                                className="nav-link"
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    scrollToSection('product')
-                                }}
+                            <Link 
+                                to="/products" 
+                                className={`nav-link ${location.pathname === '/products' ? 'active' : ''}`}
+                                onClick={() => setMobileMenuOpen(false)}
                             >
-                                Produk
-                            </a>
+                                 Produk
+                            </Link>
                         </li>
                         <li>
                             <a
@@ -209,6 +211,19 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                                                 <i className="fas fa-th-large"></i>
                                                 Dashboard
                                             </button>
+
+                                            {/* --- TAMBAHAN MENU KERANJANG --- */}
+                                            {localStorage.getItem('userRole') === 'client' && (
+                                                <button
+                                                    className="profile-dropdown-item"
+                                                    onClick={handleCartClick}
+                                                >
+                                                    <i className="fas fa-shopping-cart"></i>
+                                                    Keranjang
+                                                </button>
+                                            )}
+                                            {/* ------------------------------- */}
+
                                             <div className="profile-dropdown-divider"></div>
                                             <button
                                                 className="profile-dropdown-item logout"

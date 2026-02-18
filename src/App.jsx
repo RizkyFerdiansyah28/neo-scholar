@@ -12,6 +12,10 @@ import AdminDashboard from './pages/AdminDashboard'
 import MentorDashboard from './pages/MentorDashboard'
 import Register from './pages/Register' // Perhatikan huruf besar/kecil sesuai file Anda
 import './styles/App.css'
+import Products from './pages/Products' // <--- 1. Tambahkan Import ini
+import Cart from './pages/Cart' // <--- IMPORT BARU
+import Checkout from './pages/Checkout';
+
 
 // --- MODIFIKASI: ProtectedRoute dengan Alert & Redirection ---
 function ProtectedRoute({ children, requiredRole }) {
@@ -60,9 +64,17 @@ function App() {
                 <Header isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
                 <Routes>
                     <Route path="/" element={<Home isLoggedIn={isLoggedIn} />} />
+                    <Route path="/products" element={<Products />} /> {/* <--- 2. Tambahkan Route ini */}
                     
-                    {/* Redirect user yang sudah login agar tidak bisa buka halaman login lagi */}
+                    <Route path="/cart" element={<Cart /> } />
+
+                    <Route path="/checkout" element={
+                        <ProtectedRoute requiredRole="client">
+                         <Checkout />
+                        </ProtectedRoute>
+                        } />
                     <Route
+                    
                         path="/login"
                         element={
                             isLoggedIn ? (

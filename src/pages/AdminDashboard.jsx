@@ -24,6 +24,45 @@ function AdminDashboard({ setIsLoggedIn }) {
     const [courses, setCourses] = useState([])
     const [mentorApplications, setMentorApplications] = useState([]) // State untuk aplikasi mentor
 
+    // Validasi Checkout
+    const [transactions, setTransactions] = useState([]);
+
+    // untuk ambil data transaksi
+    useEffect(() => {
+    fetchTransactions();
+    }, []);
+
+    const fetchTransactions = async () => {
+    try {
+        const res = await fetch('http://localhost/neo-skul/api/admin_transactions.php');
+        const data = await res.json();
+        setTransactions(data);
+    } catch (error) {
+        console.error("Gagal load transaksi", error);
+    }
+    };
+
+    const handleUpdateStatus = async (id, newStatus) => {
+    if(!confirm(`Yakin ingin mengubah status menjadi ${newStatus}?`)) return;
+
+    try {
+        const res = await fetch('http://localhost/neo-skul/api/admin_transactions.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ transaction_id: id, status: newStatus })
+        });
+        const result = await res.json();
+        if(result.success) {
+            alert("Status diperbarui!");
+            fetchTransactions(); // Refresh data
+        }
+    } catch (error) {
+        console.error(error);
+    }
+    };
+
+
+
     // Load data from API on mount
     useEffect(() => {
         const fetchData = async () => {
@@ -295,6 +334,92 @@ function AdminDashboard({ setIsLoggedIn }) {
 
                     {/* Main Grid */}
                     <div className="dashboard-grid">
+
+
+                        {/* --- SECTION 1: KONFIRMASI PEMBAYARAN (TRANSAKSI) --- */}
+                <div className="dashboard-section">
+                    <div className="section-header">
+                        <h2><i className="fas fa-money-check-alt" style={{marginRight:'10px'}}></i> Konfirmasi Pembayaran</h2>
+                    </div>
+                    
+                    {transactions.length === 0 ? (
+                        <p style={{color: '#666', fontStyle: 'italic'}}>Belum ada transaksi baru.</p>
+                    ) : (
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Kursus / Item</th>
+                                    <th>Total Bayar</th>
+                                    <th>Bukti TF</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {transactions.map((trx) => (
+                                    <tr key={trx.id}>
+                                        <td>
+                                            <strong>{trx.username}</strong><br/>
+                                            <small style={{color:'#777'}}>{trx.email}</small>
+                                        </td>
+                                        <td>
+                                            {/* Menampilkan list kursus jika ada, atau '-' */}
+                                            <div style={{maxWidth:'200px', fontSize:'0.9rem'}}>
+                                                {trx.course_names || 'Pembelian Paket'}
+                                            </div>
+                                        </td>
+                                        <td style={{fontWeight:'bold', color:'#1a237e'}}>
+                                            Rp {parseFloat(trx.total_amount).toLocaleString('id-ID')}
+                                        </td>
+                                        <td>
+                                            {trx.proof_image ? (
+                                                <a href={`http://localhost/neo-skul${trx.proof_image}`} target="_blank" rel="noreferrer">
+                                                    <img 
+                                                        src={`http://localhost/neo-skul${trx.proof_image}`} 
+                                                        alt="Bukti" 
+                                                        className="proof-thumb"
+                                                        title="Klik untuk memperbesar"
+                                                    />
+                                                </a>
+                                            ) : (
+                                                <span style={{color:'#999'}}>Tidak ada</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className={`status-badge ${trx.status}`}>
+                                                {trx.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {trx.status === 'pending' && (
+                                                <div className="action-buttons">
+                                                    <button 
+                                                        onClick={() => handleUpdateStatus(trx.id, 'approved')}
+                                                        className="btn-action btn-approve"
+                                                        title="Terima Pembayaran"
+                                                    >
+                                                        <i className="fas fa-check"></i> Terima
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleUpdateStatus(trx.id, 'rejected')}
+                                                        className="btn-action btn-reject"
+                                                        title="Tolak Pembayaran"
+                                                    >
+                                                        <i className="fas fa-times"></i> Tolak
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {trx.status !== 'pending' && (
+                                                <span style={{color:'#777', fontSize:'0.9rem'}}>Selesai</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
                         
                         {/* TABEL APLIKASI MENTOR (BARU) */}
                         <div className="dashboard-section full-width" id="mentor-applications">
@@ -431,7 +556,11 @@ function AdminDashboard({ setIsLoggedIn }) {
                 isOpen={showReportsModal}
                 onClose={() => setShowReportsModal(false)}
             />
+
+            
+
         </div>
+
     )
 }
 
