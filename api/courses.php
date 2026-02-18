@@ -14,7 +14,34 @@ if ($method === 'OPTIONS') {
 }
 
 switch ($method) {
-    case 'GET':
+   case 'GET':
+        $mentor_id = isset($_GET['mentor_id']) ? $_GET['mentor_id'] : null;
+
+        if ($mentor_id) {
+            // Filter berdasarkan mentor
+            $sql = "SELECT * FROM courses WHERE mentor_id = ? ORDER BY id DESC";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$mentor_id]);
+        } else {
+            // --- BAGIAN INI YANG PENTING ---
+            // "SELECT *" artinya ambil SEMUA kolom, termasuk kolom 'type'.
+            // Jika Anda ingin lebih spesifik dan hemat bandwidth, bisa ganti jadi:
+            // "SELECT id, title, type, image FROM courses ORDER BY id DESC";
+            
+            $sql = "SELECT * FROM courses ORDER BY id DESC";
+            $stmt = $conn->query($sql);
+        }
+        
+        $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Debugging: Cek apakah data kosong
+        if (!$courses) {
+            // Opsional: Kembalikan array kosong valid daripada null
+            echo json_encode([]); 
+        } else {
+            echo json_encode($courses);
+        }
+        break;
         $mentor_id = isset($_GET['mentor_id']) ? $_GET['mentor_id'] : null;
 
         if ($mentor_id) {

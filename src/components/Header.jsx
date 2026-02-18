@@ -21,13 +21,14 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
         localStorage.removeItem('userLoggedIn')
         localStorage.removeItem('username')
         localStorage.removeItem('userRole')
+        localStorage.removeItem('userId') // Hapus ID juga jika disimpan
 
         // Update App state
         if (setIsLoggedIn) {
             setIsLoggedIn(false)
         }
 
-        // Close mobile menu and dropdown
+        // Close menus
         setMobileMenuOpen(false)
         setProfileDropdownOpen(false)
 
@@ -53,7 +54,7 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
 
     const handleCartClick = () => {
         setProfileDropdownOpen(false)
-        navigate('/Cart')
+        navigate('/cart') // Pastikan huruf kecil '/cart' sesuai route di App.jsx
     }
 
     const getUsername = () => {
@@ -68,28 +69,26 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
     const getProfileIcon = () => {
         const role = localStorage.getItem('userRole')
         if (role === 'admin') {
-            return 'fa-user-shield' // Admin icon
+            return 'fa-user-shield'
         } else if (role === 'mentor') {
-            return 'fa-chalkboard-teacher' // Mentor icon
+            return 'fa-chalkboard-teacher'
         } else {
-            return 'fa-user-circle' // Client/default icon
+            return 'fa-user-circle'
         }
     }
 
     const scrollToSection = (sectionId) => {
-        // Close mobile menu if open
         setMobileMenuOpen(false)
 
-        // If we're already on home page, just scroll
+        // Jika user berada di halaman Home, scroll langsung
         if (location.pathname === '/') {
             const element = document.getElementById(sectionId)
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
         } else {
-            // Navigate to home page first, then scroll
+            // Jika tidak, navigasi ke Home dulu baru scroll
             navigate('/')
-            // Wait for navigation to complete before scrolling
             setTimeout(() => {
                 const element = document.getElementById(sectionId)
                 if (element) {
@@ -121,6 +120,7 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                         <img src="/images/logo/Logo NS.png" alt="NeoScholar Logo" />
                         Neo<span>Scholar</span>
                     </Link>
+                    
                     <ul className={`nav-links ${mobileMenuOpen ? 'active' : ''}`}>
                         <li>
                             <Link 
@@ -128,32 +128,28 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                                 className={`nav-link ${location.pathname === '/products' ? 'active' : ''}`}
                                 onClick={() => setMobileMenuOpen(false)}
                             >
-                                 Produk
+                                Produk
                             </Link>
                         </li>
+                       {/* GANTI BAGIAN INI */}
+<li>
+    <Link 
+        to="/mentors" 
+        className={`nav-link ${location.pathname === '/mentors' ? 'active' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+    >
+        Mentor
+    </Link>
+</li>
                         <li>
-                            <a
-                                href="#mentor"
-                                className="nav-link"
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    scrollToSection('mentor')
-                                }}
-                            >
-                                Mentor
-                            </a>
-                        </li>
-                        <li>
-                            <a
-                                href="#categories"
-                                className="nav-link"
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    scrollToSection('categories')
-                                }}
+                            {/* Jika Categories adalah halaman terpisah, gunakan Link */}
+                            <Link
+                                to="/categories"
+                                className={`nav-link ${location.pathname === '/categories' ? 'active' : ''}`}
+                                onClick={() => setMobileMenuOpen(false)}
                             >
                                 Kategori
-                            </a>
+                            </Link>
                         </li>
                         <li>
                             <Link
@@ -192,6 +188,7 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                                     >
                                         <i className={`fas ${getProfileIcon()}`}></i>
                                     </button>
+                                    
                                     {profileDropdownOpen && (
                                         <div className="profile-dropdown-menu nav-dropdown">
                                             <div className="profile-dropdown-header">
@@ -203,7 +200,9 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                                                     <div className="profile-role">{getUserRole()}</div>
                                                 </div>
                                             </div>
+                                            
                                             <div className="profile-dropdown-divider"></div>
+                                            
                                             <button
                                                 className="profile-dropdown-item"
                                                 onClick={handleDashboardClick}
@@ -212,7 +211,7 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                                                 Dashboard
                                             </button>
 
-                                            {/* --- TAMBAHAN MENU KERANJANG --- */}
+                                            {/* --- MENU KERANJANG (Hanya Client) --- */}
                                             {localStorage.getItem('userRole') === 'client' && (
                                                 <button
                                                     className="profile-dropdown-item"
@@ -222,9 +221,9 @@ function Header({ isLoggedIn, setIsLoggedIn }) {
                                                     Keranjang
                                                 </button>
                                             )}
-                                            {/* ------------------------------- */}
 
                                             <div className="profile-dropdown-divider"></div>
+                                            
                                             <button
                                                 className="profile-dropdown-item logout"
                                                 onClick={handleLogout}

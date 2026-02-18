@@ -1,6 +1,7 @@
 <?php
 // api/config/database.php
 
+// Pengaturan Header CORS (Pusatkan di sini)
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -12,16 +13,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-$host = "localhost";
-$db_name = "neo-scholar"; // Pastikan nama DB sesuai yang Anda buat di SQL
-$username = "root";          // Default XAMPP
-$password = "";              // Default XAMPP kosong
+// Konfigurasi Database
+$host = "localhost"; // Jika gagal, coba ganti dengan "127.0.0.1"
+$db_name = "tes"; // Pastikan nama ini PERSIS sama dengan di phpMyAdmin
+$username = "root";
+$password = "";
 
 try {
     $conn = new PDO("mysql:host=" . $host . ";dbname=" . $db_name, $username, $password);
+    
+    // PENTING: Aktifkan mode error exception agar masalah query terlihat
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
     $conn->exec("set names utf8");
 } catch(PDOException $exception) {
-    echo json_encode(["message" => "Connection error: " . $exception->getMessage()]);
+    http_response_code(500); // Berikan kode error server
+    echo json_encode([
+        "success" => false,
+        "message" => "Connection error: " . $exception->getMessage()
+    ]);
     exit();
 }
 ?>

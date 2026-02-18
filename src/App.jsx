@@ -10,41 +10,37 @@ import Categories from './pages/Categories'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import MentorDashboard from './pages/MentorDashboard'
-import Register from './pages/Register' // Perhatikan huruf besar/kecil sesuai file Anda
+import Register from './pages/Register'
+import Products from './pages/Products'
+import Cart from './pages/Cart'
+import Checkout from './pages/Checkout'
 import './styles/App.css'
-import Products from './pages/Products' // <--- 1. Tambahkan Import ini
-import Cart from './pages/Cart' // <--- IMPORT BARU
-import Checkout from './pages/Checkout';
+import Mentors from './pages/Mentors'
+import Profile from './pages/Profile'
 
-
-// --- MODIFIKASI: ProtectedRoute dengan Alert & Redirection ---
+// --- ProtectedRoute dengan Alert & Redirection ---
 function ProtectedRoute({ children, requiredRole }) {
-    // Kita ambil langsung dari localStorage untuk memastikan data persisten saat refresh
     const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
     const userRole = localStorage.getItem('userRole');
 
-    // 1. Jika belum login, tendang ke halaman login
+    // 1. Jika belum login, arahkan ke login
     if (!isLoggedIn) {
         return <Navigate to="/login" replace />;
     }
 
-    // 2. Jika Role tidak sesuai dengan yang diminta halaman
+    // 2. Jika Role tidak sesuai
     if (requiredRole && userRole !== requiredRole) {
-        // Tampilkan Peringatan
-        alert(`Akses Ditolak! Anda login sebagai "${userRole}", Anda tidak memiliki izin untuk mengakses halaman ${requiredRole}. Anda akan dikembalikan ke Dashboard Anda.`);
+        alert(`Akses Ditolak! Anda login sebagai "${userRole}", Anda tidak memiliki izin untuk mengakses halaman ${requiredRole}.`);
         
-        // Redirect kembali ke dashboard yang BENAR sesuai role user
         if (userRole === 'admin') {
             return <Navigate to="/admin/dashboard" replace />;
         } else if (userRole === 'mentor') {
             return <Navigate to="/mentor/dashboard" replace />;
         } else {
-            // Default untuk client/siswa
             return <Navigate to="/dashboard" replace />;
         }
     }
 
-    // 3. Jika lolos semua cek, tampilkan halaman
     return children;
 }
 
@@ -61,24 +57,26 @@ function App() {
     return (
         <Router>
             <div className="app">
+                {/* Header menerima props isLoggedIn dan setIsLoggedIn untuk update UI logout */}
                 <Header isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+                
                 <Routes>
                     <Route path="/" element={<Home isLoggedIn={isLoggedIn} />} />
-                    <Route path="/products" element={<Products />} /> {/* <--- 2. Tambahkan Route ini */}
+                    <Route path="/products" element={<Products />} />
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/mentors" element={<Mentors />} />
+                    <Route path="/profile/:id" element={<Profile />} />
                     
-                    <Route path="/cart" element={<Cart /> } />
-
                     <Route path="/checkout" element={
                         <ProtectedRoute requiredRole="client">
-                         <Checkout />
+                            <Checkout />
                         </ProtectedRoute>
-                        } />
+                    } />
+
                     <Route
-                    
                         path="/login"
                         element={
                             isLoggedIn ? (
-                                // Cek role untuk redirect ke dashboard yang tepat jika sudah login
                                 localStorage.getItem('userRole') === 'admin' ? <Navigate to="/admin/dashboard" /> :
                                 localStorage.getItem('userRole') === 'mentor' ? <Navigate to="/mentor/dashboard" /> :
                                 <Navigate to="/dashboard" />
@@ -90,7 +88,7 @@ function App() {
                     
                     <Route path="/register" element={<Register />} />
                     
-                    {/* --- RUTE DASHBOARD CLIENT/SISWA --- */}
+                    {/* --- DASHBOARDS --- */}
                     <Route
                         path="/dashboard"
                         element={
@@ -99,8 +97,6 @@ function App() {
                             </ProtectedRoute>
                         }
                     />
-
-                    {/* --- RUTE DASHBOARD ADMIN --- */}
                     <Route
                         path="/admin/dashboard"
                         element={
@@ -109,8 +105,6 @@ function App() {
                             </ProtectedRoute>
                         }
                     />
-
-                    {/* --- RUTE DASHBOARD MENTOR --- */}
                     <Route
                         path="/mentor/dashboard"
                         element={
@@ -123,7 +117,6 @@ function App() {
                     <Route path="/contact" element={<Contact isLoggedIn={isLoggedIn} />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/categories" element={<Categories isLoggedIn={isLoggedIn} />} />
-                    
                 </Routes>
                 <Footer />
             </div>
