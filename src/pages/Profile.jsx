@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import '../styles/Profile.css' // Style ada di langkah selanjutnya
+import '../styles/Profile.css'
 
 function Profile() {
-    const { id } = useParams() // Ambil ID dari URL (misal: /profile/5)
+    const { id } = useParams()
     
     const [mentor, setMentor] = useState(null)
     const [courses, setCourses] = useState([])
@@ -13,7 +13,6 @@ function Profile() {
     useEffect(() => {
         // Ganti URL sesuai setup Anda (XAMPP atau PHP Serve)
         const BASE_URL = 'http://localhost/neo-scholar/api';
-        // const BASE_URL = 'http://localhost:8000/api'; 
 
         const fetchData = async () => {
             setLoading(true);
@@ -25,7 +24,6 @@ function Profile() {
                 setMentor(userData);
 
                 // 2. Ambil Kursus milik Mentor ini
-                // Pastikan api/courses.php Anda sudah mendukung ?mentor_id=... (sudah ada di kode sebelumnya)
                 const coursesRes = await fetch(`${BASE_URL}/courses.php?mentor_id=${id}`);
                 if (coursesRes.ok) {
                     const coursesData = await coursesRes.json();
@@ -45,9 +43,20 @@ function Profile() {
         }
     }, [id]);
 
-    if (loading) return <div className="profile-loading">Memuat Profil...</div>;
-    if (error) return <div className="profile-error">Error: {error}</div>;
-    if (!mentor) return <div className="profile-error">Mentor tidak ditemukan.</div>;
+    // Tampilan saat Loading atau Error diperindah
+    if (loading) return (
+        <div className="profile-status-container">
+            <div className="loader"></div>
+            <p>Memuat Profil...</p>
+        </div>
+    );
+    
+    if (error || !mentor) return (
+        <div className="profile-status-container error">
+            <i className="fas fa-exclamation-circle" style={{fontSize: '3rem', color: '#ff6b6b', marginBottom: '15px'}}></i>
+            <p>{error ? `Error: ${error}` : "Mentor tidak ditemukan."}</p>
+        </div>
+    );
 
     return (
         <div className="profile-page">
@@ -60,8 +69,13 @@ function Profile() {
                         </div>
                         <div className="profile-info-main">
                             <h1>{mentor.username}</h1>
-                            <p className="profile-role-badge">{mentor.role.toUpperCase()}</p>
-                            <p className="profile-bio">{mentor.bio}</p>
+                            <p className="profile-role-badge">
+                                <i className="fas fa-chalkboard-teacher" style={{marginRight: '8px'}}></i>
+                                {mentor.role.toUpperCase()}
+                            </p>
+                            <p className="profile-bio">
+                                {mentor.bio ? mentor.bio : "Halo! Saya adalah mentor di Neo Scholar. Mari belajar bersama saya."}
+                            </p>
                             
                             <div className="profile-stats">
                                 <div className="stat-item">
@@ -85,7 +99,11 @@ function Profile() {
             {/* --- Bagian Daftar Kursus Mentor --- */}
             <section className="profile-courses-section">
                 <div className="container">
-                    <h2>Kursus dari {mentor.username}</h2>
+                    <div className="courses-section-header">
+                        <h2>Kursus dari {mentor.username}</h2>
+                        <div className="header-line"></div>
+                    </div>
+                    
                     <div className="courses-grid-profile">
                         {courses.length > 0 ? (
                             courses.map(course => (
@@ -96,16 +114,24 @@ function Profile() {
                                             alt={course.title}
                                             onError={(e) => { e.target.src = '/assets/images/products/Tamplateedukasi.jpeg'; }}
                                         />
+                                        <div className="course-overlay">
+                                            <span>Lihat Kelas</span>
+                                        </div>
                                     </div>
                                     <div className="course-info-mini">
-                                        <h3>{course.title}</h3>
+                                        <h3 title={course.title}>{course.title}</h3>
                                         <p className="course-price">Rp {parseInt(course.price).toLocaleString('id-ID')}</p>
-                                        <button className="btn btn-sm btn-outline-primary w-100">Lihat Detail</button>
+                                        <button className="btn btn-sm btn-primary w-100" style={{ borderRadius: '8px', padding: '8px 0' }}>
+                                            Lihat Detail
+                                        </button>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-muted">Mentor ini belum menerbitkan kursus.</p>
+                            <div className="empty-courses">
+                                <i className="fas fa-box-open"></i>
+                                <p>Mentor ini belum menerbitkan kursus untuk saat ini.</p>
+                            </div>
                         )}
                     </div>
                 </div>

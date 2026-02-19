@@ -67,6 +67,45 @@ function Products() {
         }
     };
 
+    // FUNGSI BARU: Untuk menambahkan produk ke keranjang
+   // FUNGSI YANG DIPERBAIKI: Untuk menambahkan produk ke keranjang
+    const handleAddToCart = async (courseId) => {
+        // Sesuaikan dengan key localStorage yang di-set pada Login.jsx
+        const isLoggedIn = localStorage.getItem('userLoggedIn');
+        const userId = localStorage.getItem('user_id');
+        
+        // Cek apakah status login true DAN user_id tersedia
+        if (isLoggedIn !== 'true' || !userId) {
+            alert("Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.");
+            // Opsi: Anda bisa redirect user ke halaman login menggunakan useNavigate di sini
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost/neo-scholar/api/cart.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId, // Menggunakan userId dari localStorage
+                    course_id: courseId
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok || response.status === 201) {
+                alert(result.message || "Produk berhasil ditambahkan ke keranjang!");
+            } else {
+                alert(result.message || "Gagal menambahkan produk ke keranjang.");
+            }
+        } catch (error) {
+            console.error("Error adding to cart:", error);
+            alert("Terjadi kesalahan pada server saat menambahkan ke keranjang.");
+        }
+    };
+
     // Ambil daftar kategori unik untuk tombol filter
     const categories = ['Semua', ...new Set(products.map(p => p.type || 'Lainnya'))];
 
@@ -115,7 +154,13 @@ function Products() {
                                         <h3>{product.title}</h3>
                                         <p>{product.description?.substring(0, 80)}...</p>
                                         <div className="product-price">Rp {parseInt(product.price).toLocaleString('id-ID')}</div>
-                                        <button className="btn btn-primary w-100">Tambah ke Keranjang</button>
+                                        {/* Terapkan event onClick dan panggil handleAddToCart */}
+                                        <button 
+                                            className="btn btn-primary w-100"
+                                            onClick={() => handleAddToCart(product.id)}
+                                        >
+                                            Tambah ke Keranjang
+                                        </button>
                                     </div>
                                 </div>
                             ))
